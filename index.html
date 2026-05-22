@@ -277,6 +277,7 @@
   const SUPABASE_URL = 'https://ynrdyfmkxaimuevfdadx.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_lUT4OwUxwCpIHIZB7456yw_GRdQPp7O';
 
+  // API 封装
   async function api(method, table, body, query) {
     let url = `${SUPABASE_URL}/rest/v1/${table}`;
     const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
@@ -289,7 +290,7 @@
   }
   const db = { select: (t, q) => api('GET', t, null, q), insert: (t, b) => api('POST', t, b), update: (t, b, q) => api('PATCH', t, b, q), delete: (t, q) => api('DELETE', t, null, q) };
 
-  // 图片上传
+  // 图片上传（纯 fetch）
   async function uploadImage(bucket, filePath, file) {
     const compressed = await compressImage(file, 1);
     const url = `${SUPABASE_URL}/storage/v1/object/${bucket}/${filePath}`;
@@ -297,9 +298,32 @@
     if (!res.ok) throw new Error(await res.text());
     return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${filePath}`;
   }
-  async function deleteImage(bucket, filePath) { await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${filePath}`, { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }); }
+  async function deleteImage(bucket, filePath) {
+    await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${filePath}`, { method: 'DELETE', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
+  }
 
-  function compressImage(file, maxSizeMB = 1) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = (e) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); let { width, height } = img; const maxDim = 1200; if (width > maxDim || height > maxDim) { if (width > height) { height *= maxDim / width; width = maxDim; } else { width *= maxDim / height; height = maxDim; } } canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height); let quality = 0.9, result = canvas.toDataURL('image/jpeg', quality); while (result.length > maxSizeMB * 1024 * 1024 && quality > 0.1) { quality -= 0.1; result = canvas.toDataURL('image/jpeg', quality); } resolve(dataURLtoBlob(result)); }; img.src = e.target.result; }; reader.readAsDataURL(file); }); }
+  function compressImage(file, maxSizeMB = 1) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
+          const maxDim = 1200;
+          if (width > maxDim || height > maxDim) { if (width > height) { height *= maxDim / width; width = maxDim; } else { width *= maxDim / height; height = maxDim; } }
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          let quality = 0.9, result = canvas.toDataURL('image/jpeg', quality);
+          while (result.length > maxSizeMB * 1024 * 1024 && quality > 0.1) { quality -= 0.1; result = canvas.toDataURL('image/jpeg', quality); }
+          resolve(dataURLtoBlob(result));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
   function dataURLtoBlob(dataurl) { const arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1]; const bstr = atob(arr[1]); let n = bstr.length; const u8arr = new Uint8Array(n); while (n--) u8arr[n] = bstr.charCodeAt(n); return new Blob([u8arr], { type: mime }); }
 
   function renderUploadUI(currentUrl, bucket, prefix, onUploadFunc, onDeleteFunc) {
@@ -308,6 +332,7 @@
     html += `</div>`; return html;
   }
 
+  // 数据状态
   let boxes = [], items = [], packages = [];
   let activeBoxId = null, activePackageId = null;
   let showHistory = false, showPacking = false, showPackagesTab = false;
@@ -378,7 +403,7 @@
   async function saveTracking(pkgId) { const inp = document.getElementById('trackingInput'); if (inp) { await db.update('packages', { tracking_number: inp.value.trim() }, { id: `eq.${pkgId}` }); await loadData(); renderPackageDetail(); } }
   async function deletePackage(pkgId) { if (!confirm('⚠️ 删除包裹将取消关联所有框，但不会删除框本身，继续？')) return; await db.update('boxes', { package_id: null }, { package_id: `eq.${pkgId}` }); await db.delete('packages', { id: `eq.${pkgId}` }); await loadData(); goBack(); }
 
-  // 详情页：三段式布局
+  // 详情页（三段式布局）
   function renderDetail() {
     const box = boxes.find(b => b.id === activeBoxId); if (!box) return goBack();
     const boxItems = items.filter(i => i.box_id === box.id); const total = boxItems.reduce((s,i) => s + i.amount, 0); const count = boxItems.length; const isOpen = box.status === 'open', isPacking = box.status === 'packing'; const pkg = packages.find(p => p.id === box.package_id);
@@ -390,13 +415,9 @@
     window.deletePaymentImage = async function() { if (!confirm('确认删除付款凭证吗？')) return; const box = boxes.find(b => b.id === activeBoxId); if (box?.payment_image_url) { const filePath = box.payment_image_url.split('/').pop(); try { await deleteImage('payment-proofs', filePath); } catch(e) {} } await db.update('boxes', { payment_image_url: '' }, { id: `eq.${activeBoxId}` }); await loadData(); renderDetail(); };
     let paymentUploadHtml = !isOpen ? renderUploadUI(box.payment_image_url, 'payment-proofs', 'payment', 'uploadPaymentImage', 'deletePaymentImage') : '';
 
-    // 固定头部
     const topHtml = `<div class="detail-fixed-top"><div class="detail-header"><span class="detail-customer">${box.customer}</span><span class="detail-boxid">${box.id}</span></div><div class="item-count">📦 共 ${count} 件商品</div>${packageInfo}${noteHtml}${paypalHtml}${paymentUploadHtml}</div>`;
-
-    // 可滚动中间区域：商品列表+总价
     const scrollHtml = `<div class="detail-scrollable"><div class="detail-items">${itemsHtml}</div><div class="total-row">$${total}</div></div>`;
 
-    // 固定底部操作栏
     let bottomHtml = '';
     if (isOpen) bottomHtml = `<div class="detail-fixed-bottom"><div class="add-row"><input type="number" id="addAmountInput" placeholder="$金额" step="0.01"><button class="btn-primary" onclick="addAmount('${box.id}')">添加</button></div><div class="action-row"><button class="btn-close" onclick="closeBox('${box.id}')">✅ 结账</button><button class="btn-delete" onclick="deleteBox('${box.id}')">🗑 删除框</button></div></div>`;
     else if (isPacking) bottomHtml = `<div class="detail-fixed-bottom"><div class="action-row"><button class="btn-pack" onclick="packBox('${box.id}')">📦 单独打包</button><button class="btn-delete" onclick="deleteBox('${box.id}')">🗑 删除框</button></div></div>`;
@@ -406,7 +427,7 @@
     document.getElementById('backBtn').style.display = 'inline-block';
   }
 
-  // 事件处理（保持原有，略）
+  // 事件处理
   function goBack() { activeBoxId = null; activePackageId = null; currentView = 'list'; document.getElementById('backBtn').style.display = 'none'; renderMobileList(); }
   function showDetail(id) { activeBoxId = id; currentView = 'detail'; document.getElementById('backBtn').style.display = 'inline-block'; renderDetail(); }
   function onSearchInput(v) { searchQuery = v.trim(); renderMobileList(); }
@@ -432,13 +453,117 @@
   async function deleteBox(boxId) { if (!confirm('⚠️ 确定要删除这个框及其所有购买记录吗？\n此操作无法恢复！')) return; await deleteBoxFromDB(boxId); goBack(); }
   async function mergeAndPack() { if (selectedBoxes.size < 2) return; const ids = [...selectedBoxes]; const firstBox = boxes.find(b => b.id === ids[0]); const customer = firstBox.customer; if (!ids.every(id => boxes.find(b => b.id === id)?.customer === customer)) return alert('只能合并同一个客户的框子！'); const inserted = await db.insert('packages', { customer, tracking_number: '', photo_url: '' }); if (!inserted || inserted.length === 0) { alert('创建包裹失败'); return; } const pkgId = inserted[0].id; for (const id of ids) { await db.update('boxes', { status: 'completed', package_id: pkgId }, { id: `eq.${id}` }); } selectedBoxes.clear(); await loadData(); showHistory = false; showPacking = false; showPackagesTab = true; activeBoxId = null; currentView = 'list'; renderMobileList(); }
 
-  // 桌面端（完整版，与移动端逻辑一致，采用相同的三段式布局）
-  function renderDesktopLayout() { /* 桌面端逻辑略，与移动端完全平行，采用相同的三段式详情页结构 */ }
-  function renderDesktopDetail(panel) { /* 与 renderDetail 结构相同，仅 ID 前缀不同 */ }
-  function renderDesktopPackageDetail(panel) { /* 与 renderPackageDetail 结构相同 */ }
-  function exportToExcel() { /* 导出逻辑保持不变 */ }
+  // ==================== 桌面端完整实现 ====================
+  function renderDesktopLayout() {
+    const left = document.getElementById('desktopLeft'), right = document.getElementById('desktopRight');
+    left.style.display = 'flex'; right.style.display = 'flex'; document.getElementById('mobileContent').style.display = 'none';
+    if (showPackagesTab) { renderDesktopPackageList(left, right); return; }
 
-  // 引导页消失
+    let filtered;
+    if (searchQuery) filtered = boxes.filter(b => b.customer.toLowerCase().includes(searchQuery.toLowerCase()));
+    else if (showPacking) filtered = boxes.filter(b => b.status === 'packing');
+    else if (showHistory) filtered = boxes.filter(b => b.status === 'completed');
+    else filtered = boxes.filter(b => b.status === 'open');
+    if (!showHistory && !showPacking) filtered = sortBoxes([...filtered]);
+    else filtered.sort((a, b) => b.id.localeCompare(a.id));
+
+    const showCheckbox = showPacking && !searchQuery;
+    const listHtml = filtered.length === 0 ? `<div class="empty-state">${searchQuery ? '未找到客户' : showPacking ? '待打包列表为空' : showHistory ? '暂无历史记录' : '暂无进行中的框'}</div>`
+      : filtered.map(box => {
+          const total = getBoxTotal(box.id), count = getBoxItemCount(box.id);
+          const st = box.status === 'open' ? '进行中' : box.status === 'packing' ? '待打包' : '已完成';
+          const sc = box.status === 'packing' ? 'packing' : box.status === 'completed' ? 'completed' : '';
+          const checkboxHtml = showCheckbox ? `<input type="checkbox" class="box-checkbox" ${selectedBoxes.has(box.id) ? 'checked' : ''} onchange="toggleSelectBoxDesktop('${box.id}')" onclick="event.stopPropagation()">` : '';
+          const imageHtml = box.payment_image_url ? `<img src="${box.payment_image_url}" class="box-image-thumb" onclick="event.stopPropagation(); window.open('${box.payment_image_url}')" title="点击放大">` : '';
+          return `<div class="box-item ${box.id === activeBoxId ? 'active' : ''}" onclick="selectDesktopBox('${box.id}')">${checkboxHtml}<div class="box-info"><div class="box-row1"><span class="box-customer">${box.customer}</span><span class="box-total">$${total}</span></div><div class="box-row2"><span class="box-id">${box.id} · ${count}件</span><span class="box-status ${sc}">${st}</span></div>${box.note ? `<div style="font-size:11px;color:#6b7280;margin-top:2px;">📝 ${box.note}</div>` : ''}</div>${imageHtml}</div>`;
+        }).join('');
+
+    const mergeBtnHtml = showPacking && selectedBoxes.size >= 2 ? `<button class="btn-pack" onclick="mergeAndPackDesktop()">📦 合并打包 (${selectedBoxes.size})</button>` : '';
+    document.getElementById('desktopSearchArea').innerHTML = `<div class="search-row"><input class="search-input" id="desktopSearchInput" placeholder="搜索客户名称" value="${searchQuery}" oninput="onDesktopSearchInput(this.value)">${searchQuery ? '<button class="btn-sm" onclick="clearDesktopSearch()">清除</button>' : ''}</div>${!searchQuery && !showHistory && !showPacking && !showPackagesTab ? `<div class="new-row"><input id="desktopNewCustomer" placeholder="新客户名" oninput="onDesktopCustomerInput(this)" onfocus="onDesktopCustomerInput(this)" onblur="hideDesktopSuggestionsLater()"><button class="btn-primary" onclick="createDesktopBox()">＋ 新建</button></div>` : ''}${!searchQuery ? `<div class="sort-group"><div class="sort-btn ${sortBy==='amount'?'active':''}" onclick="setDesktopSort('amount')">💰 金额排序</div><div class="sort-btn ${sortBy==='time'?'active':''}" onclick="setDesktopSort('time')">🕒 时间排序</div></div><div class="tabs"><div class="tab ${!showHistory&&!showPacking&&!showPackagesTab?'active':''}" onclick="switchDesktopTab('open')">进行中</div><div class="tab ${showPacking?'active':''}" onclick="switchDesktopTab('packing')">待打包</div><div class="tab ${showPackagesTab?'active':''}" onclick="switchDesktopTab('packages')">📦 包裹</div><div class="tab ${showHistory?'active':''}" onclick="switchDesktopTab('history')">历史</div></div>` : ''}`;
+    document.getElementById('desktopBoxListWrap').innerHTML = `<div class="box-list">${listHtml}</div>${mergeBtnHtml}`;
+
+    if (activeBoxId) renderDesktopDetail(right);
+    else if (activePackageId) renderDesktopPackageDetail(right);
+    else right.innerHTML = '<div class="empty-tip">👈 点击框或包裹查看详情</div>';
+  }
+
+  function renderDesktopPackageList(left, right) {
+    const filtered = [...packages].sort((a, b) => b.id - a.id);
+    const listHtml = filtered.length === 0 ? `<div class="empty-state">暂无包裹记录</div>` : filtered.map(pkg => { const relatedBoxes = boxes.filter(b => b.package_id === pkg.id); const total = relatedBoxes.reduce((s, b) => s + getBoxTotal(b.id), 0); const count = relatedBoxes.length; return `<div class="package-item" onclick="selectDesktopPackage(${pkg.id})"><div class="package-customer">${pkg.customer}</div><div class="package-meta"><span>${count}个框 · $${total}</span><span>${pkg.tracking_number || '无单号'}</span></div></div>`; }).join('');
+    document.getElementById('desktopSearchArea').innerHTML = `<div class="search-row"><input class="search-input" id="desktopSearchInput" placeholder="搜索客户名称" value="${searchQuery}" oninput="onDesktopSearchInput(this.value)">${searchQuery ? '<button class="btn-sm" onclick="clearDesktopSearch()">清除</button>' : ''}</div><div class="tabs"><div class="tab" onclick="switchDesktopTab('open')">进行中</div><div class="tab" onclick="switchDesktopTab('packing')">待打包</div><div class="tab active">📦 包裹</div><div class="tab" onclick="switchDesktopTab('history')">历史</div></div>`;
+    document.getElementById('desktopBoxListWrap').innerHTML = `<div class="box-list">${listHtml}</div>`;
+    if (activePackageId) renderDesktopPackageDetail(right); else if (activeBoxId) renderDesktopDetail(right); else right.innerHTML = '<div class="empty-tip">👈 点击包裹查看详情</div>';
+  }
+
+  function renderDesktopDetail(panel) {
+    const box = boxes.find(b => b.id === activeBoxId); if (!box) return;
+    const boxItems = items.filter(i => i.box_id === box.id); const total = boxItems.reduce((s,i) => s + i.amount, 0); const count = boxItems.length; const isOpen = box.status === 'open', isPacking = box.status === 'packing'; const pkg = packages.find(p => p.id === box.package_id);
+    const itemsHtml = boxItems.length === 0 ? '<div class="empty-state">暂无购买记录</div>' : boxItems.map(item => `<div class="detail-item" id="d-item-${item.id}"><span class="item-time">${new Date(item.created_at).toLocaleTimeString()}</span><span class="item-amount">$${item.amount}</span>${isOpen ? `<div style="display:flex;gap:6px;"><button class="icon-btn" onclick="startDesktopEditItem(${item.id})">修改</button><button class="icon-btn" onclick="deleteDesktopItem(${item.id})">删除</button></div>` : ''}</div>`).join('');
+    let noteHtml = (isOpen || isPacking) ? `<div class="note-area"><input id="d-noteInput" placeholder="添加备注" value="${box.note || ''}"><button class="btn-sm" onclick="saveDesktopNote('${box.id}')">保存</button></div>` : (box.note ? `<div style="color:#6b7280;">📝 备注：${box.note}</div>` : '');
+    let paypalHtml = !isOpen ? `<div class="paypal-area"><input id="d-paypalInput" placeholder="PayPal 账单号" value="${box.paypal_bill || ''}"><button class="btn-sm" onclick="saveDesktopPaypal('${box.id}')">保存</button></div>` : '';
+    let packageInfo = pkg ? `<div style="margin-bottom:8px;color:#7c3aed;">📦 包裹 #${pkg.id} ${pkg.tracking_number ? '· '+pkg.tracking_number : ''}</div>` : '';
+    window.uploadDesktopPaymentImage = async function(input) { const file = input.files[0]; if (!file) return; try { const filePath = `box_${activeBoxId}_${Date.now()}.jpg`; const url = await uploadImage('payment-proofs', filePath, file); await db.update('boxes', { payment_image_url: url }, { id: `eq.${activeBoxId}` }); await loadData(); renderDesktopLayout(); } catch(e) { alert('上传失败: ' + e.message); } };
+    window.deleteDesktopPaymentImage = async function() { if (!confirm('确认删除付款凭证吗？')) return; const box = boxes.find(b => b.id === activeBoxId); if (box?.payment_image_url) { const filePath = box.payment_image_url.split('/').pop(); try { await deleteImage('payment-proofs', filePath); } catch(e) {} } await db.update('boxes', { payment_image_url: '' }, { id: `eq.${activeBoxId}` }); await loadData(); renderDesktopLayout(); };
+    let paymentUploadHtml = !isOpen ? renderUploadUI(box.payment_image_url, 'payment-proofs', 'd-payment', 'uploadDesktopPaymentImage', 'deleteDesktopPaymentImage') : '';
+
+    const topHtml = `<div class="detail-fixed-top"><div class="detail-header"><span class="detail-customer">${box.customer}</span><span class="detail-boxid">${box.id}</span></div><div class="item-count">📦 共 ${count} 件商品</div>${packageInfo}${noteHtml}${paypalHtml}${paymentUploadHtml}</div>`;
+    const scrollHtml = `<div class="detail-scrollable"><div class="detail-items">${itemsHtml}</div><div class="total-row">$${total}</div></div>`;
+
+    let bottomHtml = '';
+    if (isOpen) bottomHtml = `<div class="detail-fixed-bottom"><div class="add-row"><input type="number" id="d-addAmountInput" placeholder="$金额" step="0.01"><button class="btn-primary" onclick="addDesktopAmount('${box.id}')">添加</button></div><div class="action-row"><button class="btn-close" onclick="closeDesktopBox('${box.id}')">✅ 结账</button><button class="btn-delete" onclick="deleteDesktopBox('${box.id}')">🗑 删除框</button></div></div>`;
+    else if (isPacking) bottomHtml = `<div class="detail-fixed-bottom"><div class="action-row"><button class="btn-pack" onclick="packDesktopBox('${box.id}')">📦 单独打包</button><button class="btn-delete" onclick="deleteDesktopBox('${box.id}')">🗑 删除框</button></div></div>`;
+    else bottomHtml = `<div class="detail-fixed-bottom"><div class="action-row"><button class="btn-delete" onclick="deleteDesktopBox('${box.id}')">🗑 删除框</button></div></div>`;
+
+    panel.innerHTML = `<div class="detail-page">${topHtml}${scrollHtml}${bottomHtml}</div>`;
+  }
+
+  function renderDesktopPackageDetail(panel) {
+    const pkg = packages.find(p => p.id === activePackageId); if (!pkg) { panel.innerHTML = '<div class="empty-tip">包裹不存在</div>'; return; }
+    const relatedBoxes = boxes.filter(b => b.package_id === pkg.id); const total = relatedBoxes.reduce((s, b) => s + getBoxTotal(b.id), 0);
+    window.uploadDesktopPackagePhoto = async function(input) { const file = input.files[0]; if (!file) return; try { const filePath = `pkg_${activePackageId}_${Date.now()}.jpg`; const url = await uploadImage('package-photos', filePath, file); await db.update('packages', { photo_url: url }, { id: `eq.${activePackageId}` }); await loadData(); renderDesktopLayout(); } catch(e) { alert('上传失败: ' + e.message); } };
+    window.deleteDesktopPackagePhoto = async function() { if (!confirm('确认删除包裹照片吗？')) return; const pkg = packages.find(p => p.id === activePackageId); if (pkg?.photo_url) { const filePath = pkg.photo_url.split('/').pop(); try { await deleteImage('package-photos', filePath); } catch(e) {} } await db.update('packages', { photo_url: '' }, { id: `eq.${activePackageId}` }); await loadData(); renderDesktopLayout(); };
+    const uploadHtml = renderUploadUI(pkg.photo_url, 'package-photos', 'd-pkg', 'uploadDesktopPackagePhoto', 'deleteDesktopPackagePhoto');
+    panel.innerHTML = `<div class="detail-page"><div class="detail-fixed-top"><div class="detail-header"><span class="detail-customer">${pkg.customer}</span></div><div style="margin-bottom:12px;">📦 包裹 #${pkg.id}</div><div class="paypal-area"><input id="d-trackingInput" placeholder="物流单号" value="${pkg.tracking_number || ''}"><button class="btn-sm" onclick="saveDesktopTracking(${pkg.id})">保存单号</button></div>${uploadHtml}<div class="item-count">包含 ${relatedBoxes.length} 个框 · 总金额 $${total}</div></div><div class="detail-scrollable"><div class="detail-items">${relatedBoxes.map(box => `<div class="detail-item" onclick="selectDesktopBox('${box.id}')" style="cursor:pointer;"><span>${box.id} · ${getBoxItemCount(box.id)}件</span><span style="margin-left:auto;">$${getBoxTotal(box.id)}</span></div>`).join('')}</div><div class="total-row">$${total}</div></div><div class="detail-fixed-bottom"><div class="action-row"><button class="btn-delete" onclick="deleteDesktopPackage(${pkg.id})">🗑 删除包裹</button></div></div></div>`;
+  }
+
+  async function saveDesktopTracking(pkgId) { const inp = document.getElementById('d-trackingInput'); if (inp) { await db.update('packages', { tracking_number: inp.value.trim() }, { id: `eq.${pkgId}` }); await loadData(); renderDesktopLayout(); } }
+  async function deleteDesktopPackage(pkgId) { if (!confirm('⚠️ 删除包裹将取消关联所有框，但不会删除框本身，继续？')) return; await db.update('boxes', { package_id: null }, { package_id: `eq.${pkgId}` }); await db.delete('packages', { id: `eq.${pkgId}` }); await loadData(); activePackageId = null; renderDesktopLayout(); }
+
+  function selectDesktopBox(id) { activeBoxId = id; activePackageId = null; renderDesktopLayout(); }
+  function selectDesktopPackage(id) { activePackageId = id; activeBoxId = null; renderDesktopLayout(); }
+  function onDesktopSearchInput(v) { searchQuery = v.trim(); renderDesktopLayout(); }
+  function clearDesktopSearch() { searchQuery = ''; renderDesktopLayout(); }
+  function setDesktopSort(t) { sortBy = t; renderDesktopLayout(); }
+  function switchDesktopTab(mode) { searchQuery = ''; showHistory = showPacking = showPackagesTab = false; if (mode === 'history') showHistory = true; else if (mode === 'packing') showPacking = true; else if (mode === 'packages') showPackagesTab = true; activeBoxId = null; activePackageId = null; selectedBoxes.clear(); renderDesktopLayout(); }
+  function toggleSelectBoxDesktop(id) { if (selectedBoxes.has(id)) selectedBoxes.delete(id); else selectedBoxes.add(id); renderDesktopLayout(); }
+
+  function onDesktopCustomerInput(input) { hideDesktopSuggestions(); const q = input.value.trim(); if (!q) return; const names = getAllCustomerNames().filter(n => n.toLowerCase().startsWith(q.toLowerCase())); if (names.length === 0) return; const div = document.createElement('div'); div.className = 'suggestions'; div.id = 'dSuggestList'; names.forEach(name => { const item = document.createElement('div'); item.className = 'suggestion-item'; item.textContent = name; item.onmousedown = (e) => { e.preventDefault(); input.value = name; hideDesktopSuggestions(); input.focus(); }; div.appendChild(item); }); input.parentNode.appendChild(div); }
+  function hideDesktopSuggestions() { const el = document.getElementById('dSuggestList'); if (el) el.remove(); }
+  function hideDesktopSuggestionsLater() { setTimeout(hideDesktopSuggestions, 200); }
+
+  async function createDesktopBox() { const input = document.getElementById('desktopNewCustomer'); if (!input) return; const name = input.value.trim(); if (!name) return alert('请输入客户名'); hideDesktopSuggestions(); const exist = boxes.find(b => b.customer === name && b.status === 'open'); if (exist) { selectDesktopBox(exist.id); input.value = ''; return; } const id = generateNewId(); await addBoxToDB({ id, customer: name, status: 'open', note: '', paypal_bill: '', payment_image_url: '' }); input.value = ''; selectDesktopBox(id); }
+  async function saveDesktopNote(id) { const inp = document.getElementById('d-noteInput'); if (inp) await updateBoxInDB(id, { note: inp.value.trim() }); renderDesktopLayout(); }
+  async function saveDesktopPaypal(id) { const inp = document.getElementById('d-paypalInput'); if (inp) await updateBoxInDB(id, { paypal_bill: inp.value.trim() }); renderDesktopLayout(); }
+
+  function startDesktopEditItem(itemId) { const item = items.find(i => i.id === itemId); if (!item) return; const div = document.getElementById(`d-item-${itemId}`); if (!div) return; div.innerHTML = `<span class="item-time">${new Date(item.created_at).toLocaleTimeString()}</span><div style="display:flex;gap:4px;"><input type="number" id="d-editInput" value="${item.amount}" step="0.01"><button class="icon-btn" onclick="confirmDesktopEdit(${itemId})">确认</button><button class="icon-btn" onclick="renderDesktopLayout()">取消</button></div>`; }
+  async function confirmDesktopEdit(itemId) { const inp = document.getElementById('d-editInput'); if (!inp) return; const amt = parseFloat(inp.value); if (isNaN(amt) || amt < 0) return alert('请输入有效金额'); await updateItemInDB(itemId, { amount: amt }); renderDesktopLayout(); }
+  async function deleteDesktopItem(itemId) { if (!confirm('确定删除这条记录吗？')) return; await deleteItemFromDB(itemId); renderDesktopLayout(); }
+  async function addDesktopAmount(boxId) { const inp = document.getElementById('d-addAmountInput'); if (!inp) return; const amt = parseFloat(inp.value); if (isNaN(amt) || amt <= 0) return alert('请输入有效金额'); await addItemToDB({ box_id: boxId, amount: amt, created_at: new Date().toISOString() }); renderDesktopLayout(); }
+  async function closeDesktopBox(boxId) { if (!confirm('确认客户已付款，订单转为待打包吗？')) return; await updateBoxInDB(boxId, { status: 'packing' }); activeBoxId = null; renderDesktopLayout(); }
+  async function packDesktopBox(boxId) { if (!confirm('确认打包完毕，订单彻底完成吗？')) return; const box = boxes.find(b => b.id === boxId); if (!box) return; const inserted = await db.insert('packages', { customer: box.customer, tracking_number: '', photo_url: '' }); if (!inserted || inserted.length === 0) { alert('创建包裹失败'); return; } const pkgId = inserted[0].id; await db.update('boxes', { status: 'completed', package_id: pkgId }, { id: `eq.${boxId}` }); await loadData(); showHistory = false; showPacking = false; showPackagesTab = true; activeBoxId = null; activePackageId = null; renderDesktopLayout(); }
+  async function deleteDesktopBox(boxId) { if (!confirm('⚠️ 确定要删除这个框及其所有购买记录吗？\n此操作无法恢复！')) return; await deleteBoxFromDB(boxId); renderDesktopLayout(); }
+  async function mergeAndPackDesktop() { if (selectedBoxes.size < 2) return; const ids = [...selectedBoxes]; const firstBox = boxes.find(b => b.id === ids[0]); const customer = firstBox.customer; if (!ids.every(id => boxes.find(b => b.id === id)?.customer === customer)) return alert('只能合并同一个客户的框子！'); const inserted = await db.insert('packages', { customer, tracking_number: '', photo_url: '' }); if (!inserted || inserted.length === 0) { alert('创建包裹失败'); return; } const pkgId = inserted[0].id; for (const id of ids) { await db.update('boxes', { status: 'completed', package_id: pkgId }, { id: `eq.${id}` }); } selectedBoxes.clear(); await loadData(); showHistory = false; showPacking = false; showPackagesTab = true; activeBoxId = null; activePackageId = null; renderDesktopLayout(); }
+
+  function exportToExcel() {
+    let csv = '框编号,客户名,状态,商品金额,添加时间,备注,PayPal账单号,包裹ID,物流单号,付款凭证图片,包裹照片\n';
+    const statusMap = { open: '进行中', packing: '待打包', completed: '已完成' };
+    boxes.forEach(box => { const pkg = packages.find(p => p.id === box.package_id); const boxItems = items.filter(i => i.box_id === box.id); if (boxItems.length === 0) csv += `${box.id},${box.customer},${statusMap[box.status]},0,,${box.note || ''},${box.paypal_bill || ''},${box.package_id || ''},${pkg?.tracking_number || ''},${box.payment_image_url || ''},${pkg?.photo_url || ''}\n`; else boxItems.forEach(item => csv += `${box.id},${box.customer},${statusMap[box.status]},${item.amount},${new Date(item.created_at).toLocaleString()},${box.note || ''},${box.paypal_bill || ''},${box.package_id || ''},${pkg?.tracking_number || ''},${box.payment_image_url || ''},${pkg?.photo_url || ''}\n`); });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `WildSawCrystal_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+  }
+
+  // 引导页
   document.getElementById('startBtn').addEventListener('click', function() {
     const splash = document.getElementById('splashScreen');
     splash.classList.add('fadeOut');
