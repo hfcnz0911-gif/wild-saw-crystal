@@ -17,8 +17,8 @@
 
   /* ========== 自定义滚动条 (浅色，不使用时隐藏) ========== */
   ::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.2); border-radius: 10px; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(124,58,237,0.4); }
+  ::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.25); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(124,58,237,0.5); }
   ::-webkit-scrollbar-track { background: transparent; }
 
   .app {
@@ -57,17 +57,35 @@
   }
   .back-btn:active { background: rgba(124,58,237,0.15); }
 
-  /* 移动端主内容区 */
-  .content { flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+  /* ========== 移动端主内容区 ========== */
+  .content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;   /* 禁止整体滚动，由内部容器分别控制 */
+  }
 
-  /* 移动端顶部区域 (搜索、新建、标签) */
-  .top-area { flex-shrink: 0; padding: 20px 20px 0 20px; }
+  /* 顶部固定区域：搜索、新建、标签 */
+  .top-area {
+    flex-shrink: 0;
+    padding: 20px 20px 0 20px;
+  }
 
-  /* 框子列表容器：独立滚动 */
-  .box-list-container { flex: 1; overflow-y: auto; padding: 0 20px 20px 20px; }
+  /* 框子列表容器：占满剩余高度，独立滚动 */
+  .box-list-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 20px 20px 20px;
+    -webkit-overflow-scrolling: touch;
+  }
 
-  /* 详情页和包裹详情页使用全内容区滚动 */
-  .detail-page { flex: 1; overflow-y: auto; padding: 20px; }
+  /* 详情页、包裹详情页自行滚动（不使用 top-area 布局时） */
+  .detail-page {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+  }
 
   .search-row { display: flex; gap: 8px; margin-bottom: 16px; }
   .search-input {
@@ -261,14 +279,32 @@
   .start-btn { padding: 14px 40px; font-size: 16px; font-weight: 700; background: linear-gradient(135deg, #c084fc, #7c3aed); color: white; border: none; border-radius: 60px; cursor: pointer; box-shadow: 0 8px 25px rgba(124,58,237,0.5); letter-spacing: 1px; transition: all 0.3s ease; animation: fadeInUp 1s ease 0.8s both; }
   .start-btn:active { transform: scale(0.96); }
 
-  /* 电脑端适配 */
+  /* ========== 电脑端适配 ========== */
   @media (min-width: 768px) {
     .app { max-width: 1200px; flex-direction: row; min-height: 94vh; border-radius: 36px; }
     .header { display: none; }
-    .left-panel { width: 400px; min-width: 400px; border-right: 1px solid rgba(255,255,255,0.4); display: flex; flex-direction: column; background: rgba(255,255,255,0.2); backdrop-filter: blur(25px); overflow: hidden; }
-    .left-panel .search-area { padding: 20px 16px 12px; flex-shrink: 0; }
-    .left-panel .box-list-wrap { flex: 1; overflow-y: auto; padding: 8px 12px; }
-    .right-panel { flex: 1; padding: 32px; overflow-y: auto; display: flex; flex-direction: column; background: rgba(255,255,255,0.35); backdrop-filter: blur(25px); }
+    .left-panel {
+      width: 400px; min-width: 400px;
+      border-right: 1px solid rgba(255,255,255,0.4);
+      display: flex; flex-direction: column;
+      background: rgba(255,255,255,0.2);
+      backdrop-filter: blur(25px);
+      overflow: hidden;   /* 禁止面板本身滚动 */
+    }
+    .left-panel .search-area {
+      padding: 20px 16px 12px;
+      flex-shrink: 0;     /* 搜索区不缩小 */
+    }
+    .left-panel .box-list-wrap {
+      flex: 1;            /* 占满剩余高度 */
+      overflow-y: auto;   /* 只有列表区域滚动 */
+      padding: 8px 12px;
+    }
+    .right-panel {
+      flex: 1; padding: 32px; overflow-y: auto; display: flex; flex-direction: column;
+      background: rgba(255,255,255,0.35);
+      backdrop-filter: blur(25px);
+    }
     .right-panel .empty-tip { margin: auto; font-size: 18px; color: #9ca3af; }
     .back-btn { display: none !important; }
     .box-item { padding: 8px 12px; border-radius: 18px; }
@@ -276,7 +312,18 @@
     .box-total { font-size: 20px; }
     .sort-btn { font-size: 12px; padding: 6px 10px; }
     .export-float { display: none; }
-    .export-btn-desktop { position: absolute; bottom: 16px; right: 20px; width: 36px; height: 36px; background: linear-gradient(135deg, rgba(124,58,237,0.6), rgba(168,85,247,0.6)); backdrop-filter: blur(10px); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; box-shadow: 0 4px 12px rgba(124,58,237,0.2); border: none; color: white; font-size: 16px; transition: transform 0.2s; }
+    .export-btn-desktop {
+      position: absolute; bottom: 16px; right: 20px;
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, rgba(124,58,237,0.6), rgba(168,85,247,0.6));
+      backdrop-filter: blur(10px);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; z-index: 10;
+      box-shadow: 0 4px 12px rgba(124,58,237,0.2);
+      border: none; color: white; font-size: 16px;
+      transition: transform 0.2s;
+    }
     .export-btn-desktop:active { transform: scale(0.9); }
     .crystal-container { width: 180px; height: 180px; margin-bottom: 30px; }
     .crystal { width: 80px; height: 120px; box-shadow: 0 0 40px rgba(192,132,252,0.6), 0 0 80px rgba(124,58,237,0.3); }
@@ -320,6 +367,7 @@
 </div>
 
 <script>
+  // ==================== 配置 ====================
   const SUPABASE_URL = 'https://ynrdyfmkxaimuevfdadx.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_lUT4OwUxwCpIHIZB7456yw_GRdQPp7O';
 
@@ -336,7 +384,7 @@
 
   const db = { select: (t, q) => api('GET', t, null, q), insert: (t, b) => api('POST', t, b), update: (t, b, q) => api('PATCH', t, b, q), delete: (t, q) => api('DELETE', t, null, q) };
 
-  // 图片上传
+  // ==================== 图片上传 ====================
   async function uploadImage(bucket, filePath, file) {
     const compressed = await compressImage(file, 1);
     const url = `${SUPABASE_URL}/storage/v1/object/${bucket}/${filePath}`;
@@ -378,7 +426,7 @@
     html += `</div>`; return html;
   }
 
-  // 数据状态
+  // ==================== 数据状态 ====================
   let boxes = [], items = [], packages = [];
   let activeBoxId = null, activePackageId = null;
   let showHistory = false, showPacking = false, showPackagesTab = false;
@@ -410,16 +458,19 @@
 
   function generateNewId() { const ds = new Date().toISOString().slice(0,10).replace(/-/g,''); const todayBoxes = boxes.filter(b => b.id.startsWith(ds)); let maxNum = 0; todayBoxes.forEach(b => { const parts = b.id.split('-'); const num = parseInt(parts[parts.length - 1]); if (!isNaN(num) && num > maxNum) maxNum = num; }); return `${ds}-${String(maxNum + 1).padStart(2,'0')}`; }
 
-  // 移动端列表
+  // ==================== 移动端列表（使用新布局） ====================
   function renderMobileList() {
     if (showPackagesTab) { renderPackageList(); return; }
+
     let filtered;
     if (searchQuery) filtered = boxes.filter(b => b.customer.toLowerCase().includes(searchQuery.toLowerCase()));
     else if (showPacking) filtered = boxes.filter(b => b.status === 'packing');
     else if (showHistory) filtered = boxes.filter(b => b.status === 'completed');
     else filtered = boxes.filter(b => b.status === 'open');
+
     if (!showHistory && !showPacking) filtered = sortBoxes([...filtered]);
     else filtered.sort((a, b) => b.id.localeCompare(a.id));
+
     const showCheckbox = showPacking && !searchQuery;
     const listHtml = filtered.length === 0 ? `<div class="empty-state">${searchQuery ? '未找到客户' : showPacking ? '待打包列表为空' : showHistory ? '暂无历史记录' : '暂无进行中的框'}</div>`
       : filtered.map(box => {
@@ -430,7 +481,9 @@
           const imageHtml = box.payment_image_url ? `<img src="${box.payment_image_url}" class="box-image-thumb" onclick="event.stopPropagation(); window.open('${box.payment_image_url}')" title="点击放大">` : '';
           return `<div class="box-item" onclick="showDetail('${box.id}')">${checkboxHtml}<div class="box-info"><div class="box-row1"><span class="box-customer">${box.customer}</span><span class="box-total">$${total}</span></div><div class="box-row2"><span class="box-id">${box.id} · ${count}件</span><span class="box-status ${statusClass}">${statusText}</span></div>${box.note ? `<div style="font-size:11px;color:#6b7280;margin-top:2px;">📝 ${box.note}</div>` : ''}</div>${imageHtml}</div>`;
         }).join('');
+
     const mergeBtnHtml = showPacking && selectedBoxes.size >= 2 ? `<button class="btn-pack" onclick="mergeAndPack()" style="margin-top:10px;">📦 合并打包 (${selectedBoxes.size})</button>` : '';
+
     const topHtml = `<div class="search-row"><input class="search-input" id="searchInput" placeholder="搜索客户名称" value="${searchQuery}" oninput="onSearchInput(this.value)">${searchQuery ? '<button class="btn-sm" onclick="clearSearch()">清除</button>' : ''}</div>${!searchQuery && !showHistory && !showPacking && !showPackagesTab ? `<div class="new-row"><input id="newCustomer" placeholder="新客户名" oninput="onNewCustomerInput(this)" onfocus="onNewCustomerInput(this)" onblur="hideSuggestionsLater()"><button class="btn-primary" onclick="createNewBox()">＋ 新建</button></div>` : ''}${!searchQuery ? `<div class="sort-group"><div class="sort-btn ${sortBy==='amount'?'active':''}" onclick="setSort('amount')">💰 金额排序</div><div class="sort-btn ${sortBy==='time'?'active':''}" onclick="setSort('time')">🕒 时间排序</div></div><div class="tabs"><div class="tab ${!showHistory&&!showPacking&&!showPackagesTab?'active':''}" onclick="switchTab('open')">进行中</div><div class="tab ${showPacking?'active':''}" onclick="switchTab('packing')">待打包</div><div class="tab ${showPackagesTab?'active':''}" onclick="switchTab('packages')">📦 包裹</div><div class="tab ${showHistory?'active':''}" onclick="switchTab('history')">历史</div></div>` : ''}`;
     document.getElementById('dynamicArea').innerHTML = `<div class="top-area">${topHtml}</div><div class="box-list-container"><div class="box-list">${listHtml}</div>${mergeBtnHtml}</div>`;
     document.getElementById('backBtn').style.display = 'none';
@@ -473,7 +526,7 @@
     document.getElementById('backBtn').style.display = 'inline-block';
   }
 
-  // 事件处理
+  // ==================== 移动端事件 ====================
   function goBack() { activeBoxId = null; activePackageId = null; currentView = 'list'; document.getElementById('backBtn').style.display = 'none'; renderMobileList(); }
   function showDetail(id) { activeBoxId = id; currentView = 'detail'; document.getElementById('backBtn').style.display = 'inline-block'; renderDetail(); }
   function onSearchInput(v) { searchQuery = v.trim(); renderMobileList(); }
@@ -481,6 +534,7 @@
   function setSort(t) { sortBy = t; renderMobileList(); }
   function switchTab(mode) { searchQuery = ''; showHistory = showPacking = showPackagesTab = false; if (mode === 'history') showHistory = true; else if (mode === 'packing') showPacking = true; else if (mode === 'packages') showPackagesTab = true; activeBoxId = null; activePackageId = null; currentView = 'list'; selectedBoxes.clear(); renderMobileList(); }
   function toggleSelectBox(id) { if (selectedBoxes.has(id)) selectedBoxes.delete(id); else selectedBoxes.add(id); renderMobileList(); }
+
   function onNewCustomerInput(input) { hideSuggestions(); const q = input.value.trim(); if (!q) return; const names = getAllCustomerNames().filter(n => n.toLowerCase().startsWith(q.toLowerCase())); if (names.length === 0) return; const div = document.createElement('div'); div.className = 'suggestions'; div.id = 'suggestList'; names.forEach(name => { const item = document.createElement('div'); item.className = 'suggestion-item'; item.textContent = name; item.onmousedown = (e) => { e.preventDefault(); input.value = name; hideSuggestions(); input.focus(); }; div.appendChild(item); }); input.parentNode.appendChild(div); }
   function hideSuggestions() { const el = document.getElementById('suggestList'); if (el) el.remove(); }
   function hideSuggestionsLater() { setTimeout(hideSuggestions, 200); }
@@ -494,11 +548,12 @@
   async function deleteItemById(itemId) { if (!confirm('确定删除这条记录吗？')) return; await deleteItemFromDB(itemId); renderDetail(); }
   async function addAmount(boxId) { const inp = document.getElementById('addAmountInput'); if (!inp) return; const amt = parseFloat(inp.value); if (isNaN(amt) || amt <= 0) return alert('请输入有效金额'); await addItemToDB({ box_id: boxId, amount: amt, created_at: new Date().toISOString() }); renderDetail(); }
   async function closeBox(boxId) { if (!confirm('确认客户已付款，订单转为待打包吗？')) return; await updateBoxInDB(boxId, { status: 'packing' }); goBack(); }
+
   async function packBox(boxId) { if (!confirm('确认打包完毕，订单彻底完成吗？')) return; const box = boxes.find(b => b.id === boxId); if (!box) return; const inserted = await db.insert('packages', { customer: box.customer, tracking_number: '', photo_url: '' }); if (!inserted || inserted.length === 0) { alert('创建包裹失败'); return; } const pkgId = inserted[0].id; await db.update('boxes', { status: 'completed', package_id: pkgId }, { id: `eq.${boxId}` }); await loadData(); showHistory = false; showPacking = false; showPackagesTab = true; activeBoxId = null; currentView = 'list'; renderMobileList(); }
   async function deleteBox(boxId) { if (!confirm('⚠️ 确定要删除这个框及其所有购买记录吗？\n此操作无法恢复！')) return; await deleteBoxFromDB(boxId); goBack(); }
   async function mergeAndPack() { if (selectedBoxes.size < 2) return; const ids = [...selectedBoxes]; const firstBox = boxes.find(b => b.id === ids[0]); const customer = firstBox.customer; if (!ids.every(id => boxes.find(b => b.id === id)?.customer === customer)) return alert('只能合并同一个客户的框子！'); const inserted = await db.insert('packages', { customer, tracking_number: '', photo_url: '' }); if (!inserted || inserted.length === 0) { alert('创建包裹失败'); return; } const pkgId = inserted[0].id; for (const id of ids) { await db.update('boxes', { status: 'completed', package_id: pkgId }, { id: `eq.${id}` }); } selectedBoxes.clear(); await loadData(); showHistory = false; showPacking = false; showPackagesTab = true; activeBoxId = null; currentView = 'list'; renderMobileList(); }
 
-  // 桌面端渲染 (完整)
+  // ==================== 桌面端渲染 ====================
   function renderDesktopLayout() {
     const left = document.getElementById('desktopLeft'), right = document.getElementById('desktopRight');
     left.style.display = 'flex'; right.style.display = 'flex'; document.getElementById('mobileContent').style.display = 'none';
