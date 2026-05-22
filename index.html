@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>Wild Saw Crystal 结账助手</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif;
+    background: linear-gradient(145deg, #f3e8ff 0%, #ede9fe 25%, #e0e7ff 50%, #fce7f3 75%, #f3e8ff 100%);
+    background-attachment: fixed;
+    color: #1e1b4b;
+    display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 16px;
+  }
+
+  /* ========== 自定义滚动条 (浅色，不使用隐藏) ========== */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(124,58,237,0.2);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(124,58,237,0.4);
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .app {
+    width: 100%; max-width: 480px;
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border-radius: 36px;
+    box-shadow: 0 25px 45px rgba(0,0,0,0.08), 0 0 0 1px rgba(255,255,255,0.6), inset 0 0 20px rgba(255,255,255,0.4);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    min-height: 96vh;
+  }
+
+  .header {
+    padding: 18px 20px 14px;
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(255,255,255,0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255,255,255,0.5);
+  }
+  .header h1 {
+    font-size: 22px; font-weight: 700; flex: 1;
+    background: linear-gradient(135deg, #7c3aed, #db2777);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+  }
+  .back-btn {
+    background: none; border: none;
+    font-size: 18px; color: #7c3aed; cursor: pointer;
+    padding: 4px 8px; border-radius: 10px; display: none;
+    backdrop-filter: blur(10px);
+    background: rgba(255,255,255,0.3);
+  }
+  .back-btn:active { background: rgba(124,58,237,0.15); }
+
+  .content { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; position: relative; }
+
+  /* 移动端导出按钮 */
+  .export-float {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    border-radius: 50%;
+    box-shadow: 0 8px 18px rgba(124,58,237,0.35);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 99;
+    transition: transform 0.2s;
+    border: none;
+    color: white; font-size: 20px;
+  }
+  .export-float:active { transform: scale(0.9); }
+
+  .search-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .search-input {
+    flex: 1; padding: 14px 18px; font-size: 16px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.5);
+    backdrop-filter: blur(12px);
+    color: #1e1b4b;
+    transition: all 0.2s;
+  }
+  .search-input:focus { outline: none; border-color: #a855f7; box-shadow: 0 0 0 3px rgba(168,85,247,0.15); }
+  .search-input::placeholder { color: #9ca3af; }
+
+  .btn-sm {
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(12px);
+    border: none; padding: 10px 16px; border-radius: 16px;
+    cursor: pointer; font-size: 14px; font-weight: 500;
+    color: #4c1d95;
+    transition: 0.2s;
+  }
+  .btn-sm:active { background: rgba(255,255,255,0.8); }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: #fff; border: none;
+    padding: 12px 18px; font-size: 15px; font-weight: 600;
+    border-radius: 18px; cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 6px 14px rgba(124,58,237,0.25);
+    transition: all 0.2s;
+  }
+  .btn-primary:active { transform: scale(0.96); box-shadow: 0 3px 8px rgba(124,58,237,0.3); }
+
+  .new-row { position: relative; display: flex; gap: 8px; margin-bottom: 16px; }
+  .new-row input {
+    flex: 1; padding: 14px 18px; font-size: 16px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.5);
+    backdrop-filter: blur(12px);
+  }
+  .new-row input:focus { outline: none; border-color: #a855f7; }
+
+  .suggestions {
+    position: absolute; top: 100%; left: 0; right: 80px;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(30px);
+    border-radius: 20px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+    z-index: 20; overflow: hidden; margin-top: 6px;
+  }
+  .suggestion-item { padding: 14px 18px; font-size: 16px; border-bottom: 1px solid rgba(0,0,0,0.03); cursor: pointer; }
+  .suggestion-item:active { background: rgba(124,58,237,0.08); }
+
+  .tabs {
+    display: flex; background: rgba(255,255,255,0.4);
+    backdrop-filter: blur(12px);
+    border-radius: 20px; padding: 4px; margin-bottom: 16px;
+  }
+  .tab {
+    flex: 1; text-align: center; padding: 10px 4px;
+    font-size: 14px; font-weight: 500; color: #6b7280;
+    border-radius: 16px; cursor: pointer; transition: 0.2s;
+  }
+  .tab.active { background: white; color: #4c1d95; font-weight: 600; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+
+  .sort-group { display: flex; gap: 8px; margin-bottom: 12px; }
+  .sort-btn {
+    flex: 1; padding: 8px 12px; font-size: 13px; font-weight: 500;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.4);
+    backdrop-filter: blur(8px);
+    color: #6b7280; cursor: pointer; transition: 0.2s;
+  }
+  .sort-btn.active { background: white; color: #4c1d95; border-color: #c084fc; box-shadow: 0 2px 8px rgba(192,132,252,0.2); }
+
+  /* ========== 列表容器（独立滚动，移动端限制高度，桌面端由 left-panel 控制） ========== */
+    .box-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+    /* 移动端保留最大高度，桌面端覆盖为 auto */
+    max-height: 55vh;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .box-item {
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.65);
+    backdrop-filter: blur(18px);
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.7);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .box-item:active { transform: scale(0.98); }
+  .box-item.active { border-color: #c084fc; background: rgba(192,132,252,0.1); }
+
+  .box-checkbox { width: 20px; height: 20px; cursor: pointer; accent-color: #7c3aed; flex-shrink: 0; }
+
+  .box-info { flex: 1; min-width: 0; }
+  .box-row1 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .box-customer { font-weight: 700; font-size: 17px; letter-spacing: -0.2px; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1e1b4b; }
+  .box-total { font-size: 22px; font-weight: 700; text-align: right; white-space: nowrap; color: #7c3aed; }
+
+  .box-row2 { display: flex; justify-content: space-between; align-items: center; }
+  .box-id { font-size: 12px; color: #6b7280; }
+  .box-status {
+    font-size: 11px; font-weight: 500; padding: 2px 10px;
+    border-radius: 12px;
+    background: rgba(124,58,237,0.1); color: #4c1d95;
+    white-space: nowrap;
+  }
+  .box-status.packing { background: rgba(251,146,60,0.15); color: #c2410c; }
+  .box-status.completed { background: rgba(156,163,175,0.2); color: #4b5563; }
+
+  /* 框子列表项中的图片缩略图 */
+  .box-image-thumb {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    object-fit: cover;
+    border: 1px solid rgba(255,255,255,0.6);
+    cursor: zoom-in;
+    flex-shrink: 0;
+  }
+
+  .package-item {
+    padding: 14px;
+    background: rgba(255,255,255,0.65);
+    backdrop-filter: blur(18px);
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.7);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    cursor: pointer;
+  }
+  .package-customer { font-weight: 700; font-size: 18px; }
+  .package-meta { display: flex; justify-content: space-between; font-size: 14px; color: #6b7280; margin-top: 6px; }
+
+  .detail-header { display: flex; justify-content: space-between; margin-bottom: 18px; }
+  .detail-customer { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; background: linear-gradient(135deg, #7c3aed, #db2777); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .detail-boxid { font-size: 14px; color: #6b7280; }
+
+  .item-count { font-size: 15px; color: #6b7280; margin-bottom: 14px; font-weight: 500; }
+
+  .detail-items { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+  .detail-item {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(12px);
+    padding: 12px 14px; border-radius: 18px; font-size: 16px;
+    border: 1px solid rgba(255,255,255,0.5);
+  }
+  .item-time { color: #9ca3af; font-size: 13px; margin-right: auto; }
+  .icon-btn {
+    border: 1px solid rgba(0,0,0,0.05); border-radius: 12px;
+    padding: 6px 12px; cursor: pointer; background: rgba(255,255,255,0.7);
+    font-size: 13px; font-weight: 500; color: #4c1d95;
+    backdrop-filter: blur(8px);
+  }
+  .icon-btn:active { background: rgba(255,255,255,0.9); }
+
+  .total-row { font-size: 42px; font-weight: 800; text-align: center; margin: 16px 0 20px; letter-spacing: -1px; background: linear-gradient(135deg, #7c3aed, #db2777); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .action-row { display: flex; gap: 10px; margin-bottom: 16px; }
+  .btn-close {
+    flex: 1; background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: #fff; border: none; padding: 14px; border-radius: 18px;
+    cursor: pointer; font-size: 17px; font-weight: 600;
+    box-shadow: 0 6px 14px rgba(124,58,237,0.25);
+  }
+  .btn-delete {
+    flex: 1; background: linear-gradient(135deg, #ef4444, #f97316);
+    color: #fff; border: none; padding: 14px; border-radius: 18px;
+    cursor: pointer; font-size: 17px; font-weight: 600;
+    box-shadow: 0 6px 14px rgba(239,68,68,0.25);
+  }
+  .btn-pack {
+    flex: 1; background: linear-gradient(135deg, #10b981, #34d399);
+    color: #fff; border: none; padding: 14px; border-radius: 18px;
+    cursor: pointer; font-size: 17px; font-weight: 600;
+    box-shadow: 0 6px 14px rgba(16,185,129,0.25);
+  }
+
+  .note-area, .paypal-area { display: flex; gap: 8px; margin-bottom: 16px; }
+  .note-area input, .paypal-area input {
+    flex: 1; padding: 12px 16px; border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.5);
+    backdrop-filter: blur(10px);
+    font-size: 15px; color: #1e1b4b;
+  }
+
+  .add-row { display: flex; gap: 8px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.3); }
+  .add-row input {
+    flex: 1; padding: 12px 16px; border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.5);
+    backdrop-filter: blur(10px);
+    font-size: 16px;
+  }
+
+  .empty-state { color: #9ca3af; text-align: center; margin-top: 40px; font-size: 17px; }
+
+  /* 图片上传 */
+  .upload-area { margin-bottom: 16px; }
+  .upload-label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: #7c3aed; font-size: 15px; font-weight: 600; }
+  .upload-label input { display: none; }
+  .upload-preview { margin-top: 8px; display: flex; align-items: center; gap: 10px; }
+  .upload-preview img { width: 60px; height: 60px; border-radius: 12px; object-fit: cover; border: 1px solid rgba(255,255,255,0.6); }
+  .upload-preview span { font-size: 13px; color: #4c1d95; }
+  .upload-preview button { background: none; border: none; color: #ef4444; cursor: pointer; font-weight: 600; font-size: 14px; }
+
+  /* 引导页 */
+  #splashScreen {
+    position: fixed; top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: radial-gradient(circle at 50% 40%, #1e1b4b 0%, #0b0b1a 100%);
+    z-index: 99999;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    overflow: hidden;
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+    margin: 0; padding: 0;
+  }
+  #splashScreen.fadeOut { opacity: 0; visibility: hidden; pointer-events: none; }
+
+  .crystal-container { position: relative; width: 140px; height: 140px; margin-bottom: 24px; }
+  .crystal {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) rotate(45deg);
+    width: 60px; height: 90px;
+    background: linear-gradient(135deg, #c084fc, #7c3aed, #db2777);
+    border-radius: 40% 60% 50% 50% / 40% 50% 50% 60%;
+    box-shadow: 0 0 30px rgba(192,132,252,0.6), 0 0 60px rgba(124,58,237,0.3);
+    animation: crystalPulse 2s ease-in-out infinite;
+  }
+  .crystal::after {
+    content: '';
+    position: absolute; top: 15%; left: 20%;
+    width: 30%; height: 20%;
+    background: rgba(255,255,255,0.7);
+    border-radius: 50%;
+    transform: rotate(-20deg);
+  }
+  @keyframes crystalPulse {
+    0%,100% { transform: translate(-50%, -50%) rotate(45deg) scale(1); }
+    50% { transform: translate(-50%, -50%) rotate(45deg) scale(1.08); }
+  }
+
+  .particles { position: absolute; width: 100%; height: 100%; top: 0; left: 0; }
+  .particle {
+    position: absolute;
+    background: #e9d5ff;
+    border-radius: 50%;
+    box-shadow: 0 0 6px #c084fc, 0 0 14px #7c3aed;
+    animation: particleFloat 3s ease-in-out infinite;
+  }
+  .particle:nth-child(1) { width: 5px; height: 5px; left: 10%; top: 70%; }
+  .particle:nth-child(2) { width: 3px; height: 3px; left: 80%; top: 20%; animation-delay: 0.5s; }
+  .particle:nth-child(3) { width: 6px; height: 6px; left: 25%; top: 10%; animation-delay: 1s; }
+  .particle:nth-child(4) { width: 4px; height: 4px; left: 70%; top: 75%; animation-delay: 0.2s; }
+  .particle:nth-child(5) { width: 5px; height: 5px; left: 85%; top: 50%; animation-delay: 0.8s; }
+  .particle:nth-child(6) { width: 3px; height: 3px; left: 40%; top: 85%; animation-delay: 1.5s; }
+  @keyframes particleFloat {
+    0%,100% { transform: translateY(0) scale(1); opacity: 0.8; }
+    50% { transform: translateY(-16px) scale(1.2); opacity: 1; }
+  }
+
+  .brand-name {
+    font-size: 26px; font-weight: 800;
+    background: linear-gradient(135deg, #e9d5ff, #c084fc, #f9a8d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 2px;
+    margin-bottom: 36px;
+    text-align: center;
+    padding: 0 20px;
+    text-shadow: 0 0 30px rgba(192,132,252,0.4);
+    animation: fadeInUp 1s ease 0.5s both;
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .start-btn {
+    padding: 14px 40px;
+    font-size: 16px; font-weight: 700;
+    background: linear-gradient(135deg, #c084fc, #7c3aed);
+    color: white; border: none; border-radius: 60px;
+    cursor: pointer;
+    box-shadow: 0 8px 25px rgba(124,58,237,0.5);
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    animation: fadeInUp 1s ease 0.8s both;
+  }
+  .start-btn:active { transform: scale(0.96); }
+
+  /* 电脑端适配 */
+   @media (min-width: 768px) {
+    .app { max-width: 1200px; flex-direction: row; min-height: 94vh; border-radius: 36px; }
+    .header { display: none; }
+
+    .left-panel {
+      width: 400px; min-width: 400px;
+      border-right: 1px solid rgba(255,255,255,0.4);
+      display: flex;
+      flex-direction: column;
+      background: rgba(255,255,255,0.2);
+      backdrop-filter: blur(25px);
+      overflow: hidden; /* 防止左侧面板自身滚动 */
+    }
+    .left-panel .search-area {
+      padding: 20px 16px 12px;
+      flex-shrink: 0; /* 搜索区不缩小 */
+    }
+    .left-panel .box-list-wrap {
+      flex: 1;
+      overflow-y: auto; /* 只有列表区域滚动 */
+      padding: 8px 12px;
+    }
+
+    .right-panel {
+      flex: 1; padding: 32px; overflow-y: auto; display: flex; flex-direction: column;
+      background: rgba(255,255,255,0.35);
+      backdrop-filter: blur(25px);
+    }
+    .right-panel .empty-tip { margin: auto; font-size: 18px; color: #9ca3af; }
+    .back-btn { display: none !important; }
+
+    .box-item { padding: 8px 12px; border-radius: 18px; }
+    .box-customer { font-size: 16px; }
+    .box-total { font-size: 20px; }
+    .sort-btn { font-size: 12px; padding: 6px 10px; }
+
+    .box-list { max-height: none; }  /* 移除移动端高度限制 */
+
+    .export-float { display: none; }
+    .export-btn-desktop {
+      position: absolute; bottom: 16px; right: 20px;
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, rgba(124,58,237,0.6), rgba(168,85,247,0.6));
+      backdrop-filter: blur(10px);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; z-index: 10;
+      box-shadow: 0 4px 12px rgba(124,58,237,0.2);
+      border: none; color: white; font-size: 16px;
+      transition: transform 0.2s;
+    }
+    .export-btn-desktop:active { transform: scale(0.9); }
+
+    /* 引导页电脑端 */
+    .crystal-container { width: 180px; height: 180px; margin-bottom: 30px; }
+    .crystal { width: 80px; height: 120px; box-shadow: 0 0 40px rgba(192,132,252,0.6), 0 0 80px rgba(124,58,237,0.3); }
+    .particle:nth-child(1) { width: 6px; height: 6px; }
+    .particle:nth-child(2) { width: 4px; height: 4px; }
+    .particle:nth-child(3) { width: 8px; height: 8px; }
+    .particle:nth-child(4) { width: 5px; height: 5px; }
+    .particle:nth-child(5) { width: 7px; height: 7px; left: 90%; }
+    .particle:nth-child(6) { width: 3px; height: 3px; }
+    .brand-name { font-size: 32px; margin-bottom: 40px; }
+    .start-btn { padding: 16px 48px; font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+<!-- 引导页 -->
+<div id="splashScreen">
+  <div class="crystal-container">
+    <div class="crystal"></div>
+    <div class="particles">
+      <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+      <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+    </div>
+  </div>
+  <div class="brand-name">Wild Saw Crystal</div>
+  <button class="start-btn" id="startBtn">开 始 使 用</button>
+</div>
+
+<!-- 主应用 -->
+<div class="app" id="app">
+  <div class="left-panel" id="desktopLeft" style="display:none;">
+    <div class="search-area" id="desktopSearchArea"></div>
+    <div class="box-list-wrap" id="desktopBoxListWrap"></div>
+    <button class="export-btn-desktop" onclick="exportToExcel()" title="导出数据">⤓</button>
+  </div>
+  <div class="right-panel" id="desktopRight" style="display:none;"></div>
+  <div class="content" id="mobileContent">
+    <div class="header">
+      <button class="back-btn" id="backBtn" onclick="goBack()">← 返回</button>
+      <h1>Wild Saw Crystal</h1>
+      <span style="font-size:12px;color:#7c3aed;">● 直播中</span>
+    </div>
+    <div id="contentArea"></div>
+    <button class="export-float" onclick="exportToExcel()" title="导出数据">⤓</button>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://ynrdyfmkxaimuevfdadx.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_lUT4OwUxwCpIHIZB7456yw_GRdQPp7O';
+
+  // ==================== 纯 fetch 数据库操作 ====================
+  async function api(method, table, body, query) {
+    let url = `${SUPABASE_URL}/rest/v1/${table}`;
+    const headers = {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json'
+    };
+    if (query) url += '?' + new URLSearchParams(query).toString();
+    if (body && (method === 'POST' || method === 'PATCH' || method === 'PUT')) {
+      headers['Prefer'] = 'return=representation';
+    }
+    const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    if (!res.ok) throw new Error(await res.text());
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  }
+
+  const db = {
+    select: (t, q) => api('GET', t, null, q),
+    insert: (t, b) => api('POST', t, b),
+    update: (t, b, q) => api('PATCH', t, b, q),
+    delete: (t, q) => api('DELETE', t, null, q)
+  };
+
+  // ==================== 图片上传（纯 fetch） ====================
+  async function uploadImage(bucket, filePath, file) {
+    // 压缩图片到 1MB 以内
+    const compressed = await compressImage(file, 1);
+    const url = `${SUPABASE_URL}/storage/v1/object/${bucket}/${filePath}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': compressed.type
+      },
+      body: compressed
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${filePath}`;
+  }
+
+  async function deleteImage(bucket, filePath) {
+    const url = `${SUPABASE_URL}/storage/v1/object/${bucket}/${filePath}`;
+    await fetch(url, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+  }
+
+  function compressImage(file, maxSizeMB = 1) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
+          const maxDim = 1200;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) { height *= maxDim / width; width = maxDim; }
+            else { width *= maxDim / height; height = maxDim; }
+          }
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          let quality = 0.9;
+          let result = canvas.toDataURL('image/jpeg', quality);
+          while (result.length > maxSizeMB * 1024 * 1024 && quality > 0.1) {
+            quality -= 0.1;
+            result = canvas.toDataURL('image/jpeg', quality);
+          }
+          const blob = dataURLtoBlob(result);
+          resolve(blob);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function dataURLtoBlob(dataurl) {
+    const arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) { u8arr[n] = bstr.charCodeAt(n); }
+    return new Blob([u8arr], { type: mime });
+  }
+
+  // 通用上传 UI
+  function renderUploadUI(currentUrl, bucket, prefix, onUploadFuncName, onDeleteFuncName) {
+    let html = `<div class="upload-area">
+      <label class="upload-label">
+        <input type="file" accept="image/*" onchange="${onUploadFuncName}(this)"> 📷 上传图片
+      </label>`;
+    if (currentUrl) {
+      html += `<div class="upload-preview" id="${prefix}-preview">
+        <img src="${currentUrl}" onerror="this.parentElement.innerHTML='<span>图片加载失败</span>'">
+        <span>已上传</span>
+        <button onclick="${onDeleteFuncName}()">✕ 删除</button>
+      </div>`;
+    }
+    html += `</div>`;
+    return html;
+  }
+
+  // ==================== 数据状态 ====================
+  let boxes = [], items = [], packages = [];
+  let activeBoxId = null, activePackageId = null;
+  let showHistory = false, showPacking = false, showPackagesTab = false;
+  let searchQuery = '', sortBy = 'amount';
+  let currentView = 'list';
+  const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+  let selectedBoxes = new Set();
+
+  const getBoxTotal = (id) => items.filter(i => i.box_id === id).reduce((s, i) => s + i.amount, 0);
+  const getBoxItemCount = (id) => items.filter(i => i.box_id === id).length;
+  const getAllCustomerNames = () => [...new Set(boxes.map(b => b.customer))].sort();
+
+  async function loadData() {
+    const [bd, it, pkg] = await Promise.all([
+      db.select('boxes', { select: '*' }),
+      db.select('items', { select: '*' }),
+      db.select('packages', { select: '*' })
+    ]);
+    boxes = bd || []; items = it || []; packages = pkg || [];
+    boxes.forEach(b => { if (b.status === 'closed') b.status = 'packing'; });
+  }
+
+  function sortBoxes(arr) {
+    if (sortBy === 'amount') arr.sort((a, b) => getBoxTotal(b.id) - getBoxTotal(a.id));
+    else arr.sort((a, b) => b.id.localeCompare(a.id));
+    return arr;
+  }
+
+  function refreshView() {
+    if (isDesktop) renderDesktopLayout();
+    else {
+      if (currentView === 'list') renderList();
+      else if (currentView === 'detail') renderDetail();
+      else if (currentView === 'packageDetail') renderPackageDetail();
+    }
+  }
+
+  async function addBoxToDB(box) { await db.insert('boxes', box); await loadData(); refreshView(); }
+  async function updateBoxInDB(id, updates) { await db.update('boxes', updates, { id: `eq.${id}` }); await loadData(); refreshView(); }
+  async function deleteBoxFromDB(id) {
+    const box = boxes.find(b => b.id === id);
+    if (box?.package_id) {
+      const related = boxes.filter(b => b.package_id === box.package_id && b.id !== id);
+      if (related.length === 0) await db.delete('packages', { id: `eq.${box.package_id}` });
+    }
+    await db.delete('items', { box_id: `eq.${id}` });
+    await db.delete('boxes', { id: `eq.${id}` });
+    await loadData();
+    activeBoxId = null; activePackageId = null;
+    refreshView();
+  }
+  async function addItemToDB(item) { await db.insert('items', item); await loadData(); refreshView(); }
+  async function updateItemInDB(id, updates) { await db.update('items', updates, { id: `eq.${id}` }); await loadData(); refreshView(); }
+  async function deleteItemFromDB(id) { await db.delete('items', { id: `eq.${id}` }); await loadData(); refreshView(); }
+
+  function generateNewId() {
+    const ds = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const todayBoxes = boxes.filter(b => b.id.startsWith(ds));
+    let maxNum = 0;
+    todayBoxes.forEach(b => {
+      const parts = b.id.split('-');
+      const num = parseInt(parts[parts.length - 1]);
+      if (!isNaN(num) && num > maxNum) maxNum = num;
+    });
+    return `${ds}-${String(maxNum + 1).padStart(2,'0')}`;
+  }
+
+  // ==================== 移动端列表 ====================
+  function renderList() {
+    if (showPackagesTab) { renderPackageList(); return; }
+
+    let filtered;
+    if (searchQuery) filtered = boxes.filter(b => b.customer.toLowerCase().includes(searchQuery.toLowerCase()));
+    else if (showPacking) filtered = boxes.filter(b => b.status === 'packing');
+    else if (showHistory) filtered = boxes.filter(b => b.status === 'completed');
+    else filtered = boxes.filter(b => b.status === 'open');
+
+    if (!showHistory && !showPacking) filtered = sortBoxes([...filtered]);
+    else filtered.sort((a, b) => b.id.localeCompare(a.id));
+
+    const showCheckbox = showPacking && !searchQuery;
+    const listHtml = filtered.length === 0
+      ? `<div class="empty-state">${searchQuery ? '未找到客户' : showPacking ? '待打包列表为空' : showHistory ? '暂无历史记录' : '暂无进行中的框'}</div>`
+      : filtered.map(box => {
+          const total = getBoxTotal(box.id), count = getBoxItemCount(box.id);
+          const statusText = box.status === 'open' ? '进行中' : box.status === 'packing' ? '待打包' : '已完成';
+          const statusClass = box.status === 'packing' ? 'packing' : box.status === 'completed' ? 'completed' : '';
+          const checkboxHtml = showCheckbox ? `<input type="checkbox" class="box-checkbox" ${selectedBoxes.has(box.id) ? 'checked' : ''} onchange="toggleSelectBox('${box.id}')" onclick="event.stopPropagation()">` : '';
+          // 如果有付款凭证图片，显示缩略图，点击放大（阻止冒泡）
+          const imageHtml = box.payment_image_url ? `<img src="${box.payment_image_url}" class="box-image-thumb" onclick="event.stopPropagation(); window.open('${box.payment_image_url}')" title="点击放大">` : '';
+          return `<div class="box-item" onclick="showDetail('${box.id}')">
+            ${checkboxHtml}
+            <div class="box-info">
+              <div class="box-row1"><span class="box-customer">${box.customer}</span><span class="box-total">$${total}</span></div>
+              <div class="box-row2"><span class="box-id">${box.id} · ${count}件</span><span class="box-status ${statusClass}">${statusText}</span></div>
+              ${box.note ? `<div style="font-size:11px;color:#6b7280;margin-top:2px;">📝 ${box.note}</div>` : ''}
+            </div>
+            ${imageHtml}
+          </div>`;
+        }).join('');
+
+    const mergeBtnHtml = showPacking && selectedBoxes.size >= 2 ? `<button class="btn-pack" onclick="mergeAndPack()">📦 合并打包 (${selectedBoxes.size})</button>` : '';
+
+    const html = `
+      <div class="search-row">
+        <input class="search-input" id="searchInput" placeholder="搜索客户名称" value="${searchQuery}" oninput="onSearchInput(this.value)">
+        ${searchQuery ? '<button class="btn-sm" onclick="clearSearch()">清除</button>' : ''}
+      </div>
+      ${!searchQuery && !showHistory && !showPacking && !showPackagesTab ? `<div class="new-row"><input id="newCustomer" placeholder="新客户名" oninput="onNewCustomerInput(this)" onfocus="onNewCustomerInput(this)" onblur="hideSuggestionsLater()"><button class="btn-primary" onclick="createNewBox()">＋ 新建</button></div>` : ''}
+      ${!searchQuery ? `
+        <div class="sort-group">
+          <div class="sort-btn ${sortBy==='amount'?'active':''}" onclick="setSort('amount')">💰 金额排序</div>
+          <div class="sort-btn ${sortBy==='time'?'active':''}" onclick="setSort('time')">🕒 时间排序</div>
+        </div>
+        <div class="tabs">
+          <div class="tab ${!showHistory&&!showPacking&&!showPackagesTab?'active':''}" onclick="switchTab('open')">进行中</div>
+          <div class="tab ${showPacking?'active':''}" onclick="switchTab('packing')">待打包</div>
+          <div class="tab ${showPackagesTab?'active':''}" onclick="switchTab('packages')">📦 包裹</div>
+          <div class="tab ${showHistory?'active':''}" onclick="switchTab('history')">历史</div>
+        </div>` : ''}
+      <div class="box-list">${listHtml}</div>
+      ${mergeBtnHtml}
+    `;
+    document.getElementById('contentArea').innerHTML = html;
+    document.getElementById('backBtn').style.display = 'none';
+  }
+
+  function renderPackageList() {
+    const filtered = [...packages].sort((a, b) => b.id - a.id);
+    const listHtml = filtered.length === 0 ? `<div class="empty-state">暂无包裹记录</div>`
+      : filtered.map(pkg => {
+          const relatedBoxes = boxes.filter(b => b.package_id === pkg.id);
+          const total = relatedBoxes.reduce((s, b) => s + getBoxTotal(b.id), 0);
+          const count = relatedBoxes.length;
+          return `<div class="package-item" onclick="showPackageDetail(${pkg.id})">
+            <div class="package-customer">${pkg.customer}</div>
+            <div class="package-meta">
+              <span>${count}个框 · $${total}</span>
+              <span>${pkg.tracking_number || '无单号'}</span>
+            </div>
+          </div>`;
+        }).join('');
+
+    const html = `
+      <div class="search-row">
+        <input class="search-input" id="searchInput" placeholder="搜索客户名称" value="${searchQuery}" oninput="onSearchInput(this.value)">
+        ${searchQuery ? '<button class="btn-sm" onclick="clearSearch()">清除</button>' : ''}
+      </div>
+      <div class="tabs">
+        <div class="tab" onclick="switchTab('open')">进行中</div>
+        <div class="tab" onclick="switchTab('packing')">待打包</div>
+        <div class="tab active">📦 包裹</div>
+        <div class="tab" onclick="switchTab('history')">历史</div>
+      </div>
+      <div class="box-list">${listHtml}</div>
+    `;
+    document.getElementById('contentArea').innerHTML = html;
+    document.getElementById('backBtn').style.display = 'none';
+  }
+
+  function showPackageDetail(pkgId) { activePackageId = pkgId; currentView = 'packageDetail'; document.getElementById('backBtn').style.display = 'inline-block'; renderPackageDetail(); }
+
+  function renderPackageDetail() {
+    const pkg = packages.find(p => p.id === activePackageId);
+    if (!pkg) { goBack(); return; }
+    const relatedBoxes = boxes.filter(b => b.package_id === pkg.id);
+    const total = relatedBoxes.reduce((s, b) => s + getBoxTotal(b.id), 0);
+
+    window.uploadPackagePhoto = async function(input) {
+      const file = input.files[0]; if (!file) return;
+      try {
+        const filePath = `pkg_${activePackageId}_${Date.now()}.jpg`;
+        const url = await uploadImage('package-photos', filePath, file);
+        await db.update('packages', { photo_url: url }, { id: `eq.${activePackageId}` });
+        await loadData();
+        renderPackageDetail();
+      } catch(e) { alert('上传失败: ' + e.message); }
+    };
+    window.deletePackagePhoto = async function() {
+      if (!confirm('确认删除包裹照片吗？')) return;
+      const pkg = packages.find(p => p.id === activePackageId);
+      if (pkg?.photo_url) {
+        const filePath = pkg.photo_url.split('/').pop();
+        try { await deleteImage('package-photos', filePath); } catch(e) {}
+      }
+      await db.update('packages', { photo_url: '' }, { id: `eq.${activePackageId}` });
+      await loadData();
+      renderPackageDetail();
+    };
+
+    const uploadHtml = renderUploadUI(pkg.photo_url, 'package-photos', 'pkg', 
+      'uploadPackagePhoto', 'deletePackagePhoto');
+
+    const html = `
+      <div class="detail-header"><span class="detail-customer">${pkg.customer}</span></div>
+      <div style="margin-bottom:12px;">📦 包裹 #${pkg.id}</div>
+      <div class="paypal-area">
+        <input id="trackingInput" placeholder="物流单号" value="${pkg.tracking_number || ''}">
+        <button class="btn-sm" onclick="saveTracking(${pkg.id})">保存单号</button>
+      </div>
+      ${uploadHtml}
+      <div class="item-count">包含 ${relatedBoxes.length} 个框 · 总金额 $${total}</div>
+      <div class="detail-items">
+        ${relatedBoxes.map(box => `<div class="detail-item" onclick="showDetail('${box.id}')" style="cursor:pointer;">
+          <span>${box.id} · ${getBoxItemCount(box.id)}件</span>
+          <span style="margin-left:auto;">$${getBoxTotal(box.id)}</span>
+        </div>`).join('')}
+      </div>
+      <div class="action-row"><button class="btn-delete" onclick="deletePackage(${pkg.id})">🗑 删除包裹</button></div>
+    `;
+    document.getElementById('contentArea').innerHTML = html;
+    document.getElementById('backBtn').style.display = 'inline-block';
+  }
+
+  async function saveTracking(pkgId) { const inp = document.getElementById('trackingInput'); if (inp) { await db.update('packages', { tracking_number: inp.value.trim() }, { id: `eq.${pkgId}` }); await loadData(); renderPackageDetail(); } }
+  async function deletePackage(pkgId) { if (!confirm('⚠️ 删除包裹将取消关联所有框，但不会删除框本身，继续？')) return; await db.update('boxes', { package_id: null }, { package_id: `eq.${pkgId}` }); await db.delete('packages', { id: `eq.${pkgId}` }); await loadData(); goBack(); }
+
+  function renderDetail() {
+    const box = boxes.find(b => b.id === activeBoxId);
+    if (!box) return goBack();
+    const boxItems = items.filter(i => i.box_id === box.id);
+    const total = boxItems.reduce((s,i) => s + i.amount, 0);
+    const count = boxItems.length;
+    const isOpen = box.status === 'open', isPacking = box.status === 'packing';
+    const pkg = packages.find(p => p.id === box.package_id);
+
+    const itemsHtml = boxItems.length === 0 ? '<div class="empty-state">暂无购买记录</div>'
+      : boxItems.map(item => `<div class="detail-item" id="item-${item.id}">
+          <span class="item-time">${new Date(item.created_at).toLocaleTimeString()}</span>
+          <span class="item-amount">$${item.amount}</span>
+          ${isOpen ? `<div style="display:flex;gap:6px;"><button class="icon-btn" onclick="startEditItem(${item.id})">修改</button><button class="icon-btn" onclick="deleteItemById(${item.id})">删除</button></div>` : ''}
+        </div>`).join('');
+
+    let noteHtml = (isOpen || isPacking) ? `<div class="note-area"><input id="noteInput" placeholder="添加备注" value="${box.note || ''}"><button class="btn-sm" onclick="saveNote('${box.id}')">保存</button></div>` : (box.note ? `<div style="color:#6b7280;margin-bottom:8px;">📝 备注：${box.note}</div>` : '');
+    let paypalHtml = !isOpen ? `<div class="paypal-area"><input id="paypalInput" placeholder="PayPal 账单号 (选填)" value="${box.paypal_bill || ''}"><button class="btn-sm" onclick="savePaypal('${box.id}')">保存</button></div>` : '';
+    let packageInfo = pkg ? `<div style="margin-bottom:8px;color:#7c3aed;">📦 包裹 #${pkg.id} ${pkg.tracking_number ? '· '+pkg.tracking_number : ''}</div>` : '';
+
+    // 付款凭证上传函数
+    window.uploadPaymentImage = async function(input) {
+      const file = input.files[0]; if (!file) return;
+      try {
+        const filePath = `box_${activeBoxId}_${Date.now()}.jpg`;
+        const url = await uploadImage('payment-proofs', filePath, file);
+        await db.update('boxes', { payment_image_url: url }, { id: `eq.${activeBoxId}` });
+        await loadData();
+        renderDetail();
+      } catch(e) { alert('上传失败: ' + e.message); }
+    };
+    window.deletePaymentImage = async function() {
+      if (!confirm('确认删除付款凭证吗？')) return;
+      const box = boxes.find(b => b.id === activeBoxId);
+      if (box?.payment_image_url) {
+        const filePath = box.payment_image_url.split('/').pop();
+        try { await deleteImage('payment-proofs', filePath); } catch(e) {}
+      }
+      await db.update('boxes', { payment_image_url: '' }, { id: `eq.${activeBoxId}` });
+      await loadData();
+      renderDetail();
+    };
+
+    let paymentUploadHtml = '';
+    if (!isOpen) {
+      paymentUploadHtml = renderUploadUI(box.payment_image_url, 'payment-proofs', 'payment', 
+        'uploadPaymentImage', 'deletePaymentImage');
+    }
+
+    let actionHtml = '';
+    if (isOpen) actionHtml = `<div class="action-row"><button class="btn-close" onclick="closeBox('${box.id}')">✅ 结账</button><button class="btn-delete" onclick="deleteBox('${box.id}')">🗑 删除框</button></div><div class="add-row"><input type="number" id="addAmountInput" placeholder="$金额" step="0.01"><button class="btn-primary" onclick="addAmount('${box.id}')">添加</button></div>`;
+    else if (isPacking) actionHtml = `<div class="action-row"><button class="btn-pack" onclick="packBox('${box.id}')">📦 单独打包</button><button class="btn-delete" onclick="deleteBox('${box.id}')">🗑 删除框</button></div>`;
+    else actionHtml = `<div class="action-row"><button class="btn-delete" onclick="deleteBox('${box.id}')">🗑 删除框</button></div>`;
+
+    document.getElementById('contentArea').innerHTML = `
+      <div class="detail-header"><span class="detail-customer">${box.customer}</span><span class="detail-boxid">${box.id}</span></div>
+      <div class="item-count">📦 共 ${count} 件商品</div>
+      ${packageInfo}
+      ${noteHtml}${paypalHtml}
+      ${paymentUploadHtml}
+      <div class="detail-items">${itemsHtml}</div>
+      <div class="total-row">$${total}</div>
+      ${actionHtml}
+    `;
+    document.getElementById('backBtn').style.display = 'inline-block';
+  }
+
+  // 事件处理（略，保持原有，以下为主要事件）
+  function goBack() { activeBoxId = null; activePackageId = null; currentView = 'list'; document.getElementById('backBtn').style.display = 'none'; renderList(); }
+  function showDetail(id) { activeBoxId = id; currentView = 'detail'; document.getElementById('backBtn').style.display = 'inline-block'; renderDetail(); }
+  function onSearchInput(v) { searchQuery = v.trim(); renderList(); }
+  function clearSearch() { searchQuery = ''; renderList(); }
+  function setSort(t) { sortBy = t; renderList(); }
+  function switchTab(mode) {
+    searchQuery = '';
+    showHistory = showPacking = showPackagesTab = false;
+    if (mode === 'history') showHistory = true;
+    else if (mode === 'packing') showPacking = true;
+    else if (mode === 'packages') showPackagesTab = true;
+    activeBoxId = null; activePackageId = null; currentView = 'list';
+    selectedBoxes.clear();
+    renderList();
+  }
+  function toggleSelectBox(id) { if (selectedBoxes.has(id)) selectedBoxes.delete(id); else selectedBoxes.add(id); renderList(); }
+
+  function onNewCustomerInput(input) {
+    hideSuggestions();
+    const q = input.value.trim(); if (!q) return;
+    const names = getAllCustomerNames().filter(n => n.toLowerCase().startsWith(q.toLowerCase()));
+    if (names.length === 0) return;
+    const div = document.createElement('div'); div.className = 'suggestions'; div.id = 'suggestList';
+    names.forEach(name => {
+      const item = document.createElement('div'); item.className = 'suggestion-item'; item.textContent = name;
+      item.onmousedown = (e) => { e.preventDefault(); input.value = name; hideSuggestions(); input.focus(); };
+      div.appendChild(item);
+    });
+    input.parentNode.appendChild(div);
+  }
+  function hideSuggestions() { const el = document.getElementById('suggestList'); if (el) el.remove(); }
+  function hideSuggestionsLater() { setTimeout(hideSuggestions, 200); }
+
+  async function createNewBox() {
+    const input = document.getElementById('newCustomer'); if (!input) return;
+    const name = input.value.trim(); if (!name) return alert('请输入客户名');
+    hideSuggestions();
+    const exist = boxes.find(b => b.customer === name && b.status === 'open');
+    if (exist) { showDetail(exist.id); input.value = ''; return; }
+    const id = generateNewId();
+    await addBoxToDB({ id, customer: name, status: 'open', note: '', paypal_bill: '', payment_image_url: '' });
+    showDetail(id); input.value = '';
+  }
+
+  async function saveNote(id) { const inp = document.getElementById('noteInput'); if (inp) await updateBoxInDB(id, { note: inp.value.trim() }); renderDetail(); }
+  async function savePaypal(id) { const inp = document.getElementById('paypalInput'); if (inp) await updateBoxInDB(id, { paypal_bill: inp.value.trim() }); renderDetail(); }
+
+  function startEditItem(itemId) {
+    const item = items.find(i => i.id === itemId); if (!item) return;
+    const div = document.getElementById(`item-${itemId}`); if (!div) return;
+    div.innerHTML = `<span class="item-time">${new Date(item.created_at).toLocaleTimeString()}</span><div style="display:flex;gap:4px;"><input type="number" id="editInput" value="${item.amount}" step="0.01"><button class="icon-btn" onclick="confirmEdit(${itemId})">确认</button><button class="icon-btn" onclick="renderDetail()">取消</button></div>`;
+  }
+  async function confirmEdit(itemId) { const inp = document.getElementById('editInput'); if (!inp) return; const amt = parseFloat(inp.value); if (isNaN(amt) || amt < 0) return alert('请输入有效金额'); await updateItemInDB(itemId, { amount: amt }); renderDetail(); }
+  async function deleteItemById(itemId) { if (!confirm('确定删除这条记录吗？')) return; await deleteItemFromDB(itemId); renderDetail(); }
+  async function addAmount(boxId) { const inp = document.getElementById('addAmountInput'); if (!inp) return; const amt = parseFloat(inp.value); if (isNaN(amt) || amt <= 0) return alert('请输入有效金额'); await addItemToDB({ box_id: boxId, amount: amt, created_at: new Date().toISOString() }); renderDetail(); }
+  async function closeBox(boxId) { if (!confirm('确认客户已付款，订单转为待打包吗？')) return; await updateBoxInDB(boxId, { status: 'packing' }); goBack(); }
+
+  async function packBox(boxId) {
+    if (!confirm('确认打包完毕，订单彻底完成吗？')) return;
+    const box = boxes.find(b => b.id === boxId);
+    if (!box) return;
+    const inserted = await db.insert('packages', { customer: box.customer, tracking_number: '', photo_url: '' });
+    if (!inserted || inserted.length === 0) { alert('创建包裹失败'); return; }
+    const pkgId = inserted[0].id;
+    await db.update('boxes', { status: 'completed', package_id: pkgId }, { id: `eq.${boxId}` });
+    await loadData();
+    showHistory = false; showPacking = false; showPackagesTab = true;
+    activeBoxId = null; currentView = 'list';
+    renderList();
+  }
+
+  async function deleteBox(boxId) { if (!confirm('⚠️ 确定要删除这个框及其所有购买记录吗？\n此操作无法恢复！')) return; await deleteBoxFromDB(boxId); goBack(); }
+
+  async function mergeAndPack() {
+    if (selectedBoxes.size < 2) return;
+    const ids = [...selectedBoxes];
+    const firstBox = boxes.find(b => b.id === ids[0]);
+    const customer = firstBox.customer;
+    if (!ids.every(id => boxes.find(b => b.id === id)?.customer === customer)) return alert('只能合并同一个客户的框子！');
+    const inserted = await db.insert('packages', { customer, tracking_number: '', photo_url: '' });
+    if (!inserted || inserted.length === 0) { alert('创建包裹失败'); return; }
+    const pkgId = inserted[0].id;
+    for (const id of ids) {
+      await db.update('boxes', { status: 'completed', package_id: pkgId }, { id: `eq.${id}` });
+    }
+    selectedBoxes.clear();
+    await loadData();
+    showHistory = false; showPacking = false; showPackagesTab = true;
+    activeBoxId = null; currentView = 'list';
+    renderList();
+  }
+
+  // ==================== 桌面端渲染（结构与移动端一致，增加图片缩略图） ====================
+  function renderDesktopLayout() {
+    const left = document.getElementById('desktopLeft'), right = document.getElementById('desktopRight');
+    left.style.display = 'flex'; right.style.display = 'flex';
+    document.getElementById('mobileContent').style.display = 'none';
+
+    if (showPackagesTab) { renderDesktopPackageList(left, right); return; }
+
+    let filtered;
+    if (searchQuery) filtered = boxes.filter(b => b.customer.toLowerCase().includes(searchQuery.toLowerCase()));
+    else if (showPacking) filtered = boxes.filter(b => b.status === 'packing');
+    else if (showHistory) filtered = boxes.filter(b => b.status === 'completed');
+    else filtered = boxes.filter(b => b.status === 'open');
+
+    if (!showHistory && !showPacking) filtered = sortBoxes([...filtered]);
+    else filtered.sort((a, b) => b.id.localeCompare(a.id));
+
+    const showCheckbox = showPacking && !searchQuery;
+    const listHtml = filtered.length === 0
+      ? `<div class="empty-state">${searchQuery ? '未找到客户' : showPacking ? '待打包列表为空' : showHistory ? '暂无历史记录' : '暂无进行中的框'}</div>`
+      : filtered.map(box => {
+          const total = getBoxTotal(box.id), count = getBoxItemCount(box.id);
+          const st = box.status === 'open' ? '进行中' : box.status === 'packing' ? '待打包' : '已完成';
+          const sc = box.status === 'packing' ? 'packing' : box.status === 'completed' ? 'completed' : '';
+          const checkboxHtml = showCheckbox ? `<input type="checkbox" class="box-checkbox" ${selectedBoxes.has(box.id) ? 'checked' : ''} onchange="toggleSelectBoxDesktop('${box.id}')" onclick="event.stopPropagation()">` : '';
+          const imageHtml = box.payment_image_url ? `<img src="${box.payment_image_url}" class="box-image-thumb" onclick="event.stopPropagation(); window.open('${box.payment_image_url}')" title="点击放大">` : '';
+          return `<div class="box-item ${box.id === activeBoxId ? 'active' : ''}" onclick="selectDesktopBox('${box.id}')">
+            ${checkboxHtml}
+            <div class="box-info">
+              <div class="box-row1"><span class="box-customer">${box.customer}</span><span class="box-total">$${total}</span></div>
+              <div class="box-row2"><span class="box-id">${box.id} · ${count}件</span><span class="box-status ${sc}">${st}</span></div>
+              ${box.note ? `<div style="font-size:11px;color:#6b7280;margin-top:2px;">📝 ${box.note}</div>` : ''}
+            </div>
+            ${imageHtml}
+          </div>`;
+        }).join('');
+
+    const mergeBtnHtml = showPacking && selectedBoxes.size >= 2 ? `<button class="btn-pack" onclick="mergeAndPackDesktop()">📦 合并打包 (${selectedBoxes.size})</button>` : '';
+
+    document.getElementById('desktopSearchArea').innerHTML = `
+      <div class="search-row"><input class="search-input" id="desktopSearchInput" placeholder="搜索客户名称" value="${searchQuery}" oninput="onDesktopSearchInput(this.value)">${searchQuery ? '<button class="btn-sm" onclick="clearDesktopSearch()">清除</button>' : ''}</div>
+      ${!searchQuery && !showHistory && !showPacking && !showPackagesTab ? `<div class="new-row"><input id="desktopNewCustomer" placeholder="新客户名" oninput="onDesktopCustomerInput(this)" onfocus="onDesktopCustomerInput(this)" onblur="hideDesktopSuggestionsLater()"><button class="btn-primary" onclick="createDesktopBox()">＋ 新建</button></div>` : ''}
+      ${!searchQuery ? `
+        <div class="sort-group">
+          <div class="sort-btn ${sortBy==='amount'?'active':''}" onclick="setDesktopSort('amount')">💰 金额排序</div>
+          <div class="sort-btn ${sortBy==='time'?'active':''}" onclick="setDesktopSort('time')">🕒 时间排序</div>
+        </div>
+        <div class="tabs">
+          <div class="tab ${!showHistory&&!showPacking&&!showPackagesTab?'active':''}" onclick="switchDesktopTab('open')">进行中</div>
+          <div class="tab ${showPacking?'active':''}" onclick="switchDesktopTab('packing')">待打包</div>
+          <div class="tab ${showPackagesTab?'active':''}" onclick="switchDesktopTab('packages')">📦 包裹</div>
+          <div class="tab ${showHistory?'active':''}" onclick="switchDesktopTab('history')">历史</div>
+        </div>` : ''}
+    `;
+    document.getElementById('desktopBoxListWrap').innerHTML = `<div class="box-list">${listHtml}</div>${mergeBtnHtml}`;
+
+    if (activeBoxId) renderDesktopDetail(right);
+    else if (activePackageId) renderDesktopPackageDetail(right);
+    else right.innerHTML = '<div class="empty-tip">👈 点击框或包裹查看详情</div>';
+  }
+
+  function renderDesktopPackageList(left, right) {
+    const filtered = [...packages].sort((a, b) => b.id - a.id);
+    const listHtml = filtered.length === 0 ? `<div class="empty-state">暂无包裹记录</div>`
+      : filtered.map(pkg => {
+          const relatedBoxes = boxes.filter(b => b.package_id === pkg.id);
+          const total = relatedBoxes.reduce((s, b) => s + getBoxTotal(b.id), 0);
+          const count = relatedBoxes.length;
+          return `<div class="package-item" onclick="selectDesktopPackage(${pkg.id})">
+            <div class="package-customer">${pkg.customer}</div>
+            <div class="package-meta">
+              <span>${count}个框 · $${total}</span>
+              <span>${pkg.tracking_number || '无单号'}</span>
+            </div>
+          </div>`;
+        }).join('');
+
+    document.getElementById('desktopSearchArea').innerHTML = `
+      <div class="search-row"><input class="search-input" id="desktopSearchInput" placeholder="搜索客户名称" value="${searchQuery}" oninput="onDesktopSearchInput(this.value)">${searchQuery ? '<button class="btn-sm" onclick="clearDesktopSearch()">清除</button>' : ''}</div>
+      <div class="tabs">
+        <div class="tab" onclick="switchDesktopTab('open')">进行中</div>
+        <div class="tab" onclick="switchDesktopTab('packing')">待打包</div>
+        <div class="tab active">📦 包裹</div>
+        <div class="tab" onclick="switchDesktopTab('history')">历史</div>
+      </div>
+    `;
+    document.getElementById('desktopBoxListWrap').innerHTML = `<div class="box-list">${listHtml}</div>`;
+
+    if (activePackageId) renderDesktopPackageDetail(right);
+    else if (activeBoxId) renderDesktopDetail(right);
+    else right.innerHTML = '<div class="empty-tip">👈 点击包裹查看详情</div>';
+  }
+
+  function renderDesktopDetail(panel) {
+    const box = boxes.find(b => b.id === activeBoxId);
+    if (!box) return;
+    const boxItems = items.filter(i => i.box_id === box.id);
+    const total = boxItems.reduce((s,i) => s + i.amount, 0);
+    const count = boxItems.length;
+    const isOpen = box.status === 'open', isPacking = box.status === 'packing';
+    const pkg = packages.find(p => p.id === box.package_id);
+
+    const itemsHtml = boxItems.length === 0 ? '<div class="empty-state">暂无购买记录</div>'
+      : boxItems.map(item => `<div class="detail-item" id="d-item-${item.id}">
+          <span class="item-time">${new Date(item.created_at).toLocaleTimeString()}</span>
+          <span class="item-amount">$${item.amount}</span>
+          ${isOpen ? `<div style="display:flex;gap:6px;"><button class="icon-btn" onclick="startDesktopEditItem(${item.id})">修改</button><button class="icon-btn" onclick="deleteDesktopItem(${item.id})">删除</button></div>` : ''}
+        </div>`).join('');
+
+    let noteHtml = (isOpen || isPacking) ? `<div class="note-area"><input id="d-noteInput" placeholder="添加备注" value="${box.note || ''}"><button class="btn-sm" onclick="saveDesktopNote('${box.id}')">保存</button></div>` : (box.note ? `<div style="color:#6b7280;">📝 备注：${box.note}</div>` : '');
+    let paypalHtml = !isOpen ? `<div class="paypal-area"><input id="d-paypalInput" placeholder="PayPal 账单号" value="${box.paypal_bill || ''}"><button class="btn-sm" onclick="saveDesktopPaypal('${box.id}')">保存</button></div>` : '';
+    let packageInfo = pkg ? `<div style="margin-bottom:8px;color:#7c3aed;">📦 包裹 #${pkg.id} ${pkg.tracking_number ? '· '+pkg.tracking_number : ''}</div>` : '';
+
+    // 桌面端上传函数
+    window.uploadDesktopPaymentImage = async function(input) {
+      const file = input.files[0]; if (!file) return;
+      try {
+        const filePath = `box_${activeBoxId}_${Date.now()}.jpg`;
+        const url = await uploadImage('payment-proofs', filePath, file);
+        await db.update('boxes', { payment_image_url: url }, { id: `eq.${activeBoxId}` });
+        await loadData();
+        renderDesktopLayout();
+      } catch(e) { alert('上传失败: ' + e.message); }
+    };
+    window.deleteDesktopPaymentImage = async function() {
+      if (!confirm('确认删除付款凭证吗？')) return;
+      const box = boxes.find(b => b.id === activeBoxId);
+      if (box?.payment_image_url) {
+        const filePath = box.payment_image_url.split('/').pop();
+        try { await deleteImage('payment-proofs', filePath); } catch(e) {}
+      }
+      await db.update('boxes', { payment_image_url: '' }, { id: `eq.${activeBoxId}` });
+      await loadData();
+      renderDesktopLayout();
+    };
+
+    let paymentUploadHtml = '';
+    if (!isOpen) {
+      paymentUploadHtml = renderUploadUI(box.payment_image_url, 'payment-proofs', 'd-payment', 
+        'uploadDesktopPaymentImage', 'deleteDesktopPaymentImage');
+    }
+
+    let actionHtml = '';
+    if (isOpen) actionHtml = `<div class="action-row"><button class="btn-close" onclick="closeDesktopBox('${box.id}')">✅ 结账</button><button class="btn-delete" onclick="deleteDesktopBox('${box.id}')">🗑 删除框</button></div><div class="add-row"><input type="number" id="d-addAmountInput" placeholder="$金额" step="0.01"><button class="btn-primary" onclick="addDesktopAmount('${box.id}')">添加</button></div>`;
+    else if (isPacking) actionHtml = `<div class="action-row"><button class="btn-pack" onclick="packDesktopBox('${box.id}')">📦 单独打包</button><button class="btn-delete" onclick="deleteDesktopBox('${box.id}')">🗑 删除框</button></div>`;
+    else actionHtml = `<div class="action-row"><button class="btn-delete" onclick="deleteDesktopBox('${box.id}')">🗑 删除框</button></div>`;
+
+    panel.innerHTML = `<div class="detail-header"><span class="detail-customer">${box.customer}</span><span class="detail-boxid">${box.id}</span></div>
+      <div class="item-count">📦 共 ${count} 件商品</div>
+      ${packageInfo}
+      ${noteHtml}${paypalHtml}
+      ${paymentUploadHtml}
+      <div class="detail-items">${itemsHtml}</div>
+      <div class="total-row">$${total}</div>
+      ${actionHtml}`;
+  }
+
+  function renderDesktopPackageDetail(panel) {
+    const pkg = packages.find(p => p.id === activePackageId);
+    if (!pkg) { panel.innerHTML = '<div class="empty-tip">包裹不存在</div>'; return; }
+    const relatedBoxes = boxes.filter(b => b.package_id === pkg.id);
+    const total = relatedBoxes.reduce((s, b) => s + getBoxTotal(b.id), 0);
+
+    window.uploadDesktopPackagePhoto = async function(input) {
+      const file = input.files[0]; if (!file) return;
+      try {
+        const filePath = `pkg_${activePackageId}_${Date.now()}.jpg`;
+        const url = await uploadImage('package-photos', filePath, file);
+        await db.update('packages', { photo_url: url }, { id: `eq.${activePackageId}` });
+        await loadData();
+        renderDesktopLayout();
+      } catch(e) { alert('上传失败: ' + e.message); }
+    };
+    window.deleteDesktopPackagePhoto = async function() {
+      if (!confirm('确认删除包裹照片吗？')) return;
+      const pkg = packages.find(p => p.id === activePackageId);
+      if (pkg?.photo_url) {
+        const filePath = pkg.photo_url.split('/').pop();
+        try { await deleteImage('package-photos', filePath); } catch(e) {}
+      }
+      await db.update('packages', { photo_url: '' }, { id: `eq.${activePackageId}` });
+      await loadData();
+      renderDesktopLayout();
+    };
+
+    const uploadHtml = renderUploadUI(pkg.photo_url, 'package-photos', 'd-pkg', 
+      'uploadDesktopPackagePhoto', 'deleteDesktopPackagePhoto');
+
+    panel.innerHTML = `<div class="detail-header"><span class="detail-customer">${pkg.customer}</span></div>
+      <div style="margin-bottom:12px;">📦 包裹 #${pkg.id}</div>
+      <div class="paypal-area">
+        <input id="d-trackingInput" placeholder="物流单号" value="${pkg.tracking_number || ''}">
+        <button class="btn-sm" onclick="saveDesktopTracking(${pkg.id})">保存单号</button>
+      </div>
+      ${uploadHtml}
+      <div class="item-count">包含 ${relatedBoxes.length} 个框 · 总金额 $${total}</div>
+      <div class="detail-items">
+        ${relatedBoxes.map(box => `<div class="detail-item" onclick="selectDesktopBox('${box.id}')" style="cursor:pointer;">
+          <span>${box.id} · ${getBoxItemCount(box.id)}件</span>
+          <span style="margin-left:auto;">$${getBoxTotal(box.id)}</span>
+        </div>`).join('')}
+      </div>
+      <div class="action-row"><button class="btn-delete" onclick="deleteDesktopPackage(${pkg.id})">🗑 删除包裹</button></div>`;
+  }
+
+  async function saveDesktopTracking(pkgId) { const inp = document.getElementById('d-trackingInput'); if (inp) { await db.update('packages', { tracking_number: inp.value.trim() }, { id: `eq.${pkgId}` }); await loadData(); renderDesktopLayout(); } }
+  async function deleteDesktopPackage(pkgId) { if (!confirm('⚠️ 删除包裹将取消关联所有框，但不会删除框本身，继续？')) return; await db.update('boxes', { package_id: null }, { package_id: `eq.${pkgId}` }); await db.delete('packages', { id: `eq.${pkgId}` }); await loadData(); activePackageId = null; renderDesktopLayout(); }
+
+  function selectDesktopBox(id) { activeBoxId = id; activePackageId = null; renderDesktopLayout(); }
+  function selectDesktopPackage(id) { activePackageId = id; activeBoxId = null; renderDesktopLayout(); }
+  function onDesktopSearchInput(v) { searchQuery = v.trim(); renderDesktopLayout(); }
+  function clearDesktopSearch() { searchQuery = ''; renderDesktopLayout(); }
+  function setDesktopSort(t) { sortBy = t; renderDesktopLayout(); }
+  function switchDesktopTab(mode) {
+    searchQuery = '';
+    showHistory = showPacking = showPackagesTab = false;
+    if (mode === 'history') showHistory = true;
+    else if (mode === 'packing') showPacking = true;
+    else if (mode === 'packages') showPackagesTab = true;
+    activeBoxId = null; activePackageId = null;
+    selectedBoxes.clear();
+    renderDesktopLayout();
+  }
+  function toggleSelectBoxDesktop(id) { if (selectedBoxes.has(id)) selectedBoxes.delete(id); else selectedBoxes.add(id); renderDesktopLayout(); }
+
+  function onDesktopCustomerInput(input) {
+    hideDesktopSuggestions();
+    const q = input.value.trim(); if (!q) return;
+    const names = getAllCustomerNames().filter(n => n.toLowerCase().startsWith(q.toLowerCase()));
+    if (names.length === 0) return;
+    const div = document.createElement('div'); div.className = 'suggestions'; div.id = 'dSuggestList';
+    names.forEach(name => {
+      const item = document.createElement('div'); item.className = 'suggestion-item'; item.textContent = name;
+      item.onmousedown = (e) => { e.preventDefault(); input.value = name; hideDesktopSuggestions(); input.focus(); };
+      div.appendChild(item);
+    });
+    input.parentNode.appendChild(div);
+  }
+  function hideDesktopSuggestions() { const el = document.getElementById('dSuggestList'); if (el) el.remove(); }
+  function hideDesktopSuggestionsLater() { setTimeout(hideDesktopSuggestions, 200); }
+
+  async function createDesktopBox() {
+    const input = document.getElementById('desktopNewCustomer'); if (!input) return;
+    const name = input.value.trim(); if (!name) return alert('请输入客户名');
+    hideDesktopSuggestions();
+    const exist = boxes.find(b => b.customer === name && b.status === 'open');
+    if (exist) { selectDesktopBox(exist.id); input.value = ''; return; }
+    const id = generateNewId();
+    await addBoxToDB({ id, customer: name, status: 'open', note: '', paypal_bill: '', payment_image_url: '' });
+    input.value = ''; selectDesktopBox(id);
+  }
+
+  async function saveDesktopNote(id) { const inp = document.getElementById('d-noteInput'); if (inp) await updateBoxInDB(id, { note: inp.value.trim() }); renderDesktopLayout(); }
+  async function saveDesktopPaypal(id) { const inp = document.getElementById('d-paypalInput'); if (inp) await updateBoxInDB(id, { paypal_bill: inp.value.trim() }); renderDesktopLayout(); }
+
+  function startDesktopEditItem(itemId) {
+    const item = items.find(i => i.id === itemId); if (!item) return;
+    const div = document.getElementById(`d-item-${itemId}`); if (!div) return;
+    div.innerHTML = `<span class="item-time">${new Date(item.created_at).toLocaleTimeString()}</span><div style="display:flex;gap:4px;"><input type="number" id="d-editInput" value="${item.amount}" step="0.01"><button class="icon-btn" onclick="confirmDesktopEdit(${itemId})">确认</button><button class="icon-btn" onclick="renderDesktopLayout()">取消</button></div>`;
+  }
+  async function confirmDesktopEdit(itemId) { const inp = document.getElementById('d-editInput'); if (!inp) return; const amt = parseFloat(inp.value); if (isNaN(amt) || amt < 0) return alert('请输入有效金额'); await updateItemInDB(itemId, { amount: amt }); renderDesktopLayout(); }
+  async function deleteDesktopItem(itemId) { if (!confirm('确定删除这条记录吗？')) return; await deleteItemFromDB(itemId); renderDesktopLayout(); }
+  async function addDesktopAmount(boxId) { const inp = document.getElementById('d-addAmountInput'); if (!inp) return; const amt = parseFloat(inp.value); if (isNaN(amt) || amt <= 0) return alert('请输入有效金额'); await addItemToDB({ box_id: boxId, amount: amt, created_at: new Date().toISOString() }); renderDesktopLayout(); }
+  async function closeDesktopBox(boxId) { if (!confirm('确认客户已付款，订单转为待打包吗？')) return; await updateBoxInDB(boxId, { status: 'packing' }); activeBoxId = null; renderDesktopLayout(); }
+
+  async function packDesktopBox(boxId) {
+    if (!confirm('确认打包完毕，订单彻底完成吗？')) return;
+    const box = boxes.find(b => b.id === boxId);
+    if (!box) return;
+    const inserted = await db.insert('packages', { customer: box.customer, tracking_number: '', photo_url: '' });
+    if (!inserted || inserted.length === 0) { alert('创建包裹失败'); return; }
+    const pkgId = inserted[0].id;
+    await db.update('boxes', { status: 'completed', package_id: pkgId }, { id: `eq.${boxId}` });
+    await loadData();
+    showHistory = false; showPacking = false; showPackagesTab = true;
+    activeBoxId = null; activePackageId = null;
+    renderDesktopLayout();
+  }
+
+  async function deleteDesktopBox(boxId) { if (!confirm('⚠️ 确定要删除这个框及其所有购买记录吗？\n此操作无法恢复！')) return; await deleteBoxFromDB(boxId); renderDesktopLayout(); }
+
+  async function mergeAndPackDesktop() {
+    if (selectedBoxes.size < 2) return;
+    const ids = [...selectedBoxes];
+    const firstBox = boxes.find(b => b.id === ids[0]);
+    const customer = firstBox.customer;
+    if (!ids.every(id => boxes.find(b => b.id === id)?.customer === customer)) return alert('只能合并同一个客户的框子！');
+    const inserted = await db.insert('packages', { customer, tracking_number: '', photo_url: '' });
+    if (!inserted || inserted.length === 0) { alert('创建包裹失败'); return; }
+    const pkgId = inserted[0].id;
+    for (const id of ids) {
+      await db.update('boxes', { status: 'completed', package_id: pkgId }, { id: `eq.${id}` });
+    }
+    selectedBoxes.clear();
+    await loadData();
+    showHistory = false; showPacking = false; showPackagesTab = true;
+    activeBoxId = null; activePackageId = null;
+    renderDesktopLayout();
+  }
+
+  function exportToExcel() {
+    let csv = '框编号,客户名,状态,商品金额,添加时间,备注,PayPal账单号,包裹ID,物流单号,付款凭证图片,包裹照片\n';
+    const statusMap = { open: '进行中', packing: '待打包', completed: '已完成' };
+    boxes.forEach(box => {
+      const pkg = packages.find(p => p.id === box.package_id);
+      const boxItems = items.filter(i => i.box_id === box.id);
+      if (boxItems.length === 0) csv += `${box.id},${box.customer},${statusMap[box.status]},0,,${box.note || ''},${box.paypal_bill || ''},${box.package_id || ''},${pkg?.tracking_number || ''},${box.payment_image_url || ''},${pkg?.photo_url || ''}\n`;
+      else boxItems.forEach(item => csv += `${box.id},${box.customer},${statusMap[box.status]},${item.amount},${new Date(item.created_at).toLocaleString()},${box.note || ''},${box.paypal_bill || ''},${box.package_id || ''},${pkg?.tracking_number || ''},${box.payment_image_url || ''},${pkg?.photo_url || ''}\n`);
+    });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `WildSawCrystal_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+  }
+
+  // 引导页
+  document.getElementById('startBtn').addEventListener('click', function() {
+    var splash = document.getElementById('splashScreen');
+    splash.classList.add('fadeOut');
+    setTimeout(function() { splash.style.display = 'none'; }, 800);
+  });
+
+  window.onload = async function() {
+    await loadData();
+    if (isDesktop) {
+      document.getElementById('mobileContent').style.display = 'none';
+      document.getElementById('desktopLeft').style.display = 'flex';
+      document.getElementById('desktopRight').style.display = 'flex';
+      renderDesktopLayout();
+    } else {
+      document.getElementById('desktopLeft').style.display = 'none';
+      document.getElementById('desktopRight').style.display = 'none';
+      document.getElementById('mobileContent').style.display = 'flex';
+      renderList();
+    }
+  };
+</script>
+</body>
+</html>
